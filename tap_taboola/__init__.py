@@ -5,24 +5,24 @@ from decimal import Decimal
 import argparse
 import copy
 import datetime
-import dateutil.parser
 import json
 import os
 import sys
 import time
+import logging
 
 import requests
 import singer
-import logging
+import dateutil.parser
 
 import tap_taboola.schemas as schemas
 
-logger = singer.get_logger()
+LOGGER = singer.get_logger()
 
 BASE_URL = 'https://backstage.taboola.com'
 
 def request(url, access_token, params={}):
-    logger.info("Making request: GET {} {}".format(url, params))
+    LOGGER.info("Making request: GET {} {}".format(url, params))
 
     try:
         response = requests.get(
@@ -30,17 +30,17 @@ def request(url, access_token, params={}):
             headers={'Authorization': 'Bearer {}'.format(access_token),
                      'Accept': 'application/json'},
             params=params)
-    except e:
-        logger.exception(e)
+    except Exception as exception:
+        LOGGER.exception(exception)
 
-    logger.info("Got response code: {}".format(response.status_code))
+    LOGGER.info("Got response code: {}".format(response.status_code))
 
     response.raise_for_status()
     return response
 
 
 def generate_token(client_id, client_secret, username, password):
-    logger.info("Generating new token with password auth")
+    LOGGER.info("Generating new token with password auth")
 
     url = '{}/backstage/oauth/token'.format(BASE_URL)
 
@@ -58,12 +58,12 @@ def generate_token(client_id, client_secret, username, password):
                  'Accept': 'application/json'},
         params=params)
 
-    logger.info("Got response code: {}".format(response.status_code))
+    LOGGER.info("Got response code: {}".format(response.status_code))
 
     if response.status_code == 200:
-        logger.info("Got an access token.")
+        LOGGER.info("Got an access token.")
     elif response.status_code >= 400 and response.status_code < 500:
-        logger.error('{}: {}'.format(response.json().get('error'),
+        LOGGER.error('{}: {}'.format(response.json().get('error'),
                                      response.json().get('error_description')))
         raise RuntimeError
 
@@ -90,7 +90,7 @@ def parse_campaign_performance(campaign_performance):
     }
 
 def fetch_campaign_performance(config, state, access_token, account_id):
-    url = ('{}/backstage/api/1.0/{}/reports/campaign-summary/dimensions/campaign_day_breakdown' # noqa
+    url = ('{}/backstage/api/1.0/{}/reports/campaign-summary/dimensions/campaign_day_breakdown' #pylint: disable=line-too-long
            .format(BASE_URL, account_id))
 
     params = {
@@ -106,7 +106,7 @@ def sync_campaign_performance(config, state, access_token, account_id):
     performance = fetch_campaign_performance(config, state, access_token,
                                              account_id)
 
-    logger.info("Got {} campaign performance records."
+    LOGGER.info("Got {} campaign performance records."
                 .format(len(performance)))
 
     parsed_performance = [parse_campaign_performance(p)
@@ -114,7 +114,7 @@ def sync_campaign_performance(config, state, access_token, account_id):
 
     singer.write_records('campaign_performance', parsed_performance)
 
-    logger.info("Done syncing campaign_performance.")
+    LOGGER.info("Done syncing campaign_performance.")
 
 
 def parse_campaign(campaign):
@@ -141,23 +141,23 @@ def parse_campaign(campaign):
         'status': str(campaign.get('status', '')),
     }
 
-def fetch_campaigns(config, state, access_token, account_id):
+def fetch_campaigns(access_token, account_id):
     url = '{}/backstage/api/1.0/{}/campaigns/'.format(BASE_URL, account_id)
 
     response = request(url, access_token)
     return response.json().get('results')
 
 
-def sync_campaigns(config, state, access_token, account_id):
-    campaigns = fetch_campaigns(config, state, access_token, account_id)
+def sync_campaigns(access_token, account_id):
+    campaigns = fetch_campaigns(access_token, account_id)
 
-    logger.info('Synced {} campaigns.'.format(len(campaigns)))
+    LOGGER.info('Synced {} campaigns.'.format(len(campaigns)))
 
     parsed_campaigns = [parse_campaign(c) for c in campaigns]
 
     singer.write_records('campaigns', parsed_campaigns)
 
-    logger.info("Done syncing campaigns.")
+    LOGGER.info("Done syncing campaigns.")
 
 
 def verify_account_access(access_token, account_id):
@@ -166,11 +166,11 @@ def verify_account_access(access_token, account_id):
     result = request(url, access_token)
 
     if result.json().get('account_id') != account_id:
-        logger.error("The provided credentials don't have access to "
+        LOGGER.error("The provided credentials don't have access to "
                      "`account_id` from the config file.")
         raise RuntimeError
     else:
-        logger.info("Verified account access via token details endpoint.")
+        LOGGER.info("Verified account access via token details endpoint.")
 
 
 def validate_config(config):
@@ -188,12 +188,12 @@ def validate_config(config):
             null_keys.append(required_key)
 
     if len(missing_keys) > 0:
-        logger.fatal("Config is missing keys: {}"
+        LOGGER.fatal("Config is missing keys: {}"
                      .format(", ".join(missing_keys)))
         has_errors = True
 
     if len(null_keys) > 0:
-        logger.fatal("Config has null keys: {}"
+        LOGGER.fatal("Config has null keys: {}"
                      .format(", ".join(null_keys)))
         has_errors = True
 
@@ -205,10 +205,10 @@ def load_config(filename):
     config = {}
 
     try:
-        with open(filename) as f:
-            config = json.load(f)
+        with open(filename) as config_file:
+            config = json.load(config_file)
     except:
-        logger.fatal("Failed to decode config file. Is it valid json?")
+        LOGGER.fatal("Failed to decode config file. Is it valid json?")
         raise RuntimeError
 
     validate_config(config)
@@ -221,15 +221,15 @@ def load_state(filename):
         return {}
 
     try:
-        with open(filename) as f:
-            return json.load(f)
+        with open(filename) as state_file:
+            return json.load(state_file)
     except:
-        logger.fatal("Failed to decode state file. Is it valid json?")
+        LOGGER.fatal("Failed to decode state file. Is it valid json?")
         raise RuntimeError
 
 
 def do_sync(args):
-    logger.info("Starting sync.")
+    LOGGER.info("Starting sync.")
 
     config = load_config(args.config)
     state = load_state(args.state)
@@ -250,7 +250,7 @@ def do_sync(args):
 
     verify_account_access(access_token, config.get('account_id'))
 
-    sync_campaigns(config, state, access_token, config.get('account_id'))
+    sync_campaigns(access_token, config.get('account_id'))
     sync_campaign_performance(config, state, access_token,
                               config.get('account_id'))
 
@@ -267,7 +267,7 @@ def main():
     try:
         do_sync(args)
     except RuntimeError:
-        logger.fatal("Run failed.")
+        LOGGER.fatal("Run failed.")
         exit(1)
 
 

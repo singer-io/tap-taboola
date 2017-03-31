@@ -1,3 +1,4 @@
+#pylint: disable=invalid-name
 campaign = {
     'type': 'object',
     'properties': {
