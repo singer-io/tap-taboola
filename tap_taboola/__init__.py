@@ -11,6 +11,7 @@ import sys
 import time
 import logging
 
+import backoff
 import requests
 import singer
 import dateutil.parser
@@ -21,6 +22,12 @@ LOGGER = singer.get_logger()
 
 BASE_URL = 'https://backstage.taboola.com'
 
+
+@backoff.on_exception(backoff.expo,
+                      (requests.exceptions.RequestException),
+                      max_tries=5,
+                      giveup=lambda e: e.response is not None and 400 <= e.response.status_code < 500,
+                      factor=2)
 def request(url, access_token, params={}):
     LOGGER.info("Making request: GET {} {}".format(url, params))
 
