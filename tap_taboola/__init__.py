@@ -26,7 +26,7 @@ BASE_URL = 'https://backstage.taboola.com'
 @backoff.on_exception(backoff.expo,
                       (requests.exceptions.RequestException),
                       max_tries=5,
-                      giveup=lambda e: e.response is not None and 400 <= e.response.status_code < 500,
+                      giveup=lambda e: e.response is not None and 400 <= e.response.status_code < 500, # pylint: disable=line-too-long
                       factor=2)
 def request(url, access_token, params={}):
     LOGGER.info("Making request: GET {} {}".format(url, params))
@@ -194,12 +194,12 @@ def validate_config(config):
         elif config.get(required_key) is None:
             null_keys.append(required_key)
 
-    if len(missing_keys) > 0:
+    if missing_keys:
         LOGGER.fatal("Config is missing keys: {}"
                      .format(", ".join(missing_keys)))
         has_errors = True
 
-    if len(null_keys) > 0:
+    if null_keys:
         LOGGER.fatal("Config has null keys: {}"
                      .format(", ".join(null_keys)))
         has_errors = True
