@@ -261,7 +261,7 @@ def do_sync(args):
     sync_campaign_performance(config, state, access_token,
                               config.get('account_id'))
 
-def main():
+def main_impl():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -276,6 +276,13 @@ def main():
     except RuntimeError:
         LOGGER.fatal("Run failed.")
         exit(1)
+
+def main():
+    try:
+        main_impl()
+    except Exception as exc:
+        LOGGER.critical(exc)
+        raise exc
 
 
 
