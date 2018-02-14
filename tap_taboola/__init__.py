@@ -11,10 +11,13 @@ import sys
 import time
 import logging
 
-import backoff
-import requests
-import singer
 import dateutil.parser
+
+import singer
+from singer import utils
+import requests
+
+import backoff
 
 import tap_taboola.schemas as schemas
 
@@ -113,13 +116,17 @@ def sync_campaign_performance(config, state, access_token, account_id):
     performance = fetch_campaign_performance(config, state, access_token,
                                              account_id)
 
+    time_extracted = utils.now()
+
     LOGGER.info("Got {} campaign performance records."
                 .format(len(performance)))
 
-    parsed_performance = [parse_campaign_performance(p)
-                          for p in performance]
+    for record in performance:
+        parsed_performance = parse_campaign_performance(record)
 
-    singer.write_records('campaign_performance', parsed_performance)
+        singer.write_record('campaign_performance',
+                            parsed_performance,
+                            time_extracted=time_extracted)
 
     LOGGER.info("Done syncing campaign_performance.")
 
@@ -157,12 +164,16 @@ def fetch_campaigns(access_token, account_id):
 
 def sync_campaigns(access_token, account_id):
     campaigns = fetch_campaigns(access_token, account_id)
+    time_extracted = utils.now()
 
     LOGGER.info('Synced {} campaigns.'.format(len(campaigns)))
 
-    parsed_campaigns = [parse_campaign(c) for c in campaigns]
+    for record in campaigns:
+        parsed_campaigns = parse_campaign(record)
 
-    singer.write_records('campaigns', parsed_campaigns)
+        singer.write_record('campaigns',
+                            parsed_campaigns,
+                            time_extracted=time_extracted)
 
     LOGGER.info("Done syncing campaigns.")
 
