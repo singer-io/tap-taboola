@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='tap-taboola',
-      version='0.1.0',
+      version='0.1.1',
       description='Singer.io tap for extracting data from the Taboola API',
       author='Fishtown Analytics',
       url='http://www.singer.io',
@@ -12,7 +12,7 @@ setup(name='tap-taboola',
       install_requires=[
           'singer-python==5.0.4',
           'backoff==1.3.2',
-          'requests==2.12.4',
+          'requests==2.20.0',
           'python-dateutil==2.6.0'
       ],
       entry_points='''
