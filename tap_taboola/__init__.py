@@ -48,12 +48,8 @@ def request(url, access_token, params={}):
     response.raise_for_status()
     return response
 
-
-def generate_token(client_id, client_secret, username, password):
-    LOGGER.info("Generating new token with password auth")
-
+def get_token_password_auth(client_id, client_secret, username, password):
     url = '{}/backstage/oauth/token'.format(BASE_URL)
-
     params = {
         'client_id': client_id,
         'client_secret': client_secret,
@@ -72,12 +68,51 @@ def generate_token(client_id, client_secret, username, password):
 
     if response.status_code == 200:
         LOGGER.info("Got an access token.")
+        result = {"token": response.json().get('access_token', None)}
     elif response.status_code >= 400 and response.status_code < 500:
-        LOGGER.error('{}: {}'.format(response.json().get('error'),
-                                     response.json().get('error_description')))
-        raise RuntimeError
+        result = {k: response.json().get(k) for k in ('error','error_description')}
 
-    return response.json().get('access_token', None)
+    return result
+
+def get_token_client_credentials_auth(client_id, client_secret):
+    url = '{}/backstage/oauth/token'.format(BASE_URL)
+    params = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'grant_type': 'client_credentials'
+    }
+
+    response = requests.post(
+        url,
+        headers={'Content-Type': 'application/x-www-form-urlencoded',
+                 'Accept': 'application/json'},
+        params=params)
+
+    LOGGER.info("Got response code: {}".format(response.status_code))
+
+    if response.status_code == 200:
+        LOGGER.info("Got an access token.")
+        result = {"token": response.json().get('access_token', None)}
+    elif response.status_code >= 400 and response.status_code < 500:
+        result = {k: response.json().get(k) for k in ('error','error_description')}
+
+    return result
+
+
+def generate_token(client_id, client_secret, username, password):
+    LOGGER.info("Generating new token with password auth")
+    token_result = get_token_password_auth(client_id, client_secret, username, password)
+    if 'token' not in token_result:
+        LOGGER.info("Retrying with client credentials authentication.")
+        token_result = get_token_client_credentials_auth(client_id, client_secret)
+
+    token = token_result.get('token')
+    if token is None:
+        raise Exception('Unable to authenticate, response from Taboola - {}: {}'
+                        .format(result.get('error'),
+                                result.get('error_description')))
+
+    return token
 
 def parse_campaign_performance(campaign_performance):
     return {
@@ -183,13 +218,14 @@ def verify_account_access(access_token, account_id):
 
     result = request(url, access_token)
 
-    if result.json().get('account_id') != account_id:
-        LOGGER.error("The provided credentials don't have access to "
-                     "`account_id` from the config file.")
-        raise RuntimeError
-    else:
-        LOGGER.info("Verified account access via token details endpoint.")
+    token_account_id = result.json().get('account_id')
+    if token_account_id != account_id:
+        LOGGER.warn(("The provided `account_id` ({}) doesn't match the "
+                     "`account_id` of the token issued ({})").format(account_id, token_account_id))
+        return token_account_id
 
+    LOGGER.info("Verified account access via token details endpoint.")
+    return account_id
 
 def validate_config(config):
     required_keys = ['username', 'password', 'account_id',
@@ -266,7 +302,7 @@ def do_sync(args):
                         schemas.campaign_performance,
                         key_properties=['campaign_id', 'date'])
 
-    verify_account_access(access_token, config.get('account_id'))
+    config['account_id'] = verify_account_access(access_token, config.get('account_id'))
 
     sync_campaigns(access_token, config.get('account_id'))
     sync_campaign_performance(config, state, access_token,
