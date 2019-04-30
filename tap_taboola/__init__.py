@@ -109,8 +109,8 @@ def generate_token(client_id, client_secret, username, password):
     token = token_result.get('token')
     if token is None:
         raise Exception('Unable to authenticate, response from Taboola - {}: {}'
-                        .format(result.get('error'),
-                                result.get('error_description')))
+                        .format(token_result.get('error'),
+                                token_result.get('error_description')))
 
     return token
 
