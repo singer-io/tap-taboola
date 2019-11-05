@@ -260,6 +260,8 @@ def sync_allowed_accounts(access_token, account_id):
 
     LOGGER.info("Done syncing accounts.")
 
+    return accounts
+
 
 def verify_account_access(access_token, account_id):
     url = '{}/backstage/api/1.0/token-details/'.format(BASE_URL)
@@ -343,6 +345,10 @@ def do_sync(args):
         username=config.get('username'),
         password=config.get('password'))
 
+    singer.write_schema('account',
+                        schemas.account,
+                        key_properties=['id'])
+
     singer.write_schema('campaigns',
                         schemas.campaign,
                         key_properties=['id'])
@@ -351,16 +357,16 @@ def do_sync(args):
                         schemas.campaign_performance,
                         key_properties=['campaign_id', 'date'])
 
-    singer.write_schema('account',
-                        schemas.account,
-                        key_properties=['id'])
-
     config['account_id'] = verify_account_access(access_token, config.get('account_id'))
 
-    sync_campaigns(access_token, config.get('account_id'))
-    sync_campaign_performance(config, state, access_token,
-                              config.get('account_id'))
-    sync_allowed_accounts(access_token, config.get('account_id'))
+    # Sync accounts and then return all accounts for use below
+    accounts = sync_allowed_accounts(access_token, config.get('account_id'))
+
+    # Iterate over accounts
+    for account in accounts:
+        sync_campaigns(access_token, account['account_id'])
+        sync_campaign_performance(config, state, access_token,
+                                  account['account_id'])
 
 
 def main_impl():
