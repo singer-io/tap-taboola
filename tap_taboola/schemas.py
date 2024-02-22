@@ -129,6 +129,10 @@ campaign_performance = {
             'type': 'integer',
             'description': 'Total number of impressions',
         },
+        'campaign_name': {
+            'type': 'string',
+            'description': 'Human-readable campaign name',
+        },
         'ctr': {
             'type': 'number',
             'description': 'CTR, calculated as clicks/impressions',
@@ -161,6 +165,10 @@ campaign_performance = {
         'spent': {
             'type': 'number',
             'description': 'Total spent amount',
+        },
+        'conversions_value': {
+            'type': 'number',
+            'description': 'Total revenue from conversions',
         },
         'currency': {
             'type': 'string',

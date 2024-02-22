@@ -132,6 +132,8 @@ def parse_campaign_performance(campaign_performance):
             campaign_performance.get('date'),
             '%Y-%m-%d %H:%M:%S.%f'
         ).date()),
+        'campaign_name': str(campaign_performance.get('campaign_name', '')),
+        'conversions_value': float(campaign_performance.get('conversions_value', 0.0)),
     }
 
 def fetch_campaign_performance(config, state, access_token, account_id):
