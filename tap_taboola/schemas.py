@@ -130,7 +130,7 @@ campaign_performance = {
             'description': 'Total number of impressions',
         },
         'campaign_name': {
-            'type': 'string',
+            'type': ['string', 'null'],
             'description': 'Human-readable campaign name',
         },
         'ctr': {
@@ -167,7 +167,7 @@ campaign_performance = {
             'description': 'Total spent amount',
         },
         'conversions_value': {
-            'type': 'number',
+            'type': ['number', 'null'],
             'description': 'Total revenue from conversions',
         },
         'currency': {
