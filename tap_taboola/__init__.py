@@ -66,6 +66,7 @@ def get_token_password_auth(client_id, client_secret, username, password):
 
     LOGGER.info("Got response code: {}".format(response.status_code))
 
+    result = {}
     if response.status_code == 200:
         LOGGER.info("Got an access token.")
         result = {"token": response.json().get('access_token', None)}
@@ -90,6 +91,7 @@ def get_token_client_credentials_auth(client_id, client_secret):
 
     LOGGER.info("Got response code: {}".format(response.status_code))
 
+    result = {}
     if response.status_code == 200:
         LOGGER.info("Got an access token.")
         result = {"token": response.json().get('access_token', None)}

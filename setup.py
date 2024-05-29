@@ -15,6 +15,12 @@ setup(name='tap-taboola',
           'requests==2.31.0',
           'python-dateutil==2.6.0'
       ],
+      extras_require={
+        "dev": [
+            "pylint",
+            "ipdb",
+        ]
+        },
       entry_points='''
           [console_scripts]
           tap-taboola=tap_taboola:main
