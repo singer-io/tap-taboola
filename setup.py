@@ -10,11 +10,17 @@ setup(name='tap-taboola',
       classifiers=['Programming Language :: Python :: 3 :: Only'],
       py_modules=['tap_taboola'],
       install_requires=[
-          'singer-python==5.0.4',
-          'backoff==1.3.2',
-          'requests==2.20.0',
+          'singer-python==5.13.0',
+          'backoff==1.8.0',
+          'requests==2.31.0',
           'python-dateutil==2.6.0'
       ],
+      extras_require={
+        "dev": [
+            "pylint",
+            "ipdb",
+        ]
+        },
       entry_points='''
           [console_scripts]
           tap-taboola=tap_taboola:main
