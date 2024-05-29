@@ -1,4 +1,6 @@
 version: 2.1
+orbs:
+  slack: circleci/slack@3.4.2
 jobs:
   build:
     docker:
@@ -17,6 +19,9 @@ jobs:
           command: |
             source /usr/local/share/virtualenvs/tap-taboola/bin/activate
             pylint tap_taboola -d C,R,W
+      - add_ssh_keys
+      - slack/notify-on-failure:
+          only_for_branches: master
 
 
 workflows:
