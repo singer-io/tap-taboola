@@ -29,7 +29,9 @@ BASE_URL = 'https://backstage.taboola.com'
 @backoff.on_exception(backoff.expo,
                       (requests.exceptions.RequestException),
                       max_tries=5,
-                      giveup=lambda e: e.response is not None and 400 <= e.response.status_code < 500, # pylint: disable=line-too-long
+                      giveup=lambda
+                              e: e.response is not None and 400 <= e.response.status_code < 500,
+                      # pylint: disable=line-too-long
                       factor=2)
 def request(url, access_token, params={}):
     LOGGER.info("Making request: GET {} {}".format(url, params))
@@ -47,6 +49,7 @@ def request(url, access_token, params={}):
 
     response.raise_for_status()
     return response
+
 
 def get_token_password_auth(client_id, client_secret, username, password):
     url = '{}/backstage/oauth/token'.format(BASE_URL)
@@ -71,9 +74,10 @@ def get_token_password_auth(client_id, client_secret, username, password):
         LOGGER.info("Got an access token.")
         result = {"token": response.json().get('access_token', None)}
     elif response.status_code >= 400 and response.status_code < 500:
-        result = {k: response.json().get(k) for k in ('error','error_description')}
+        result = {k: response.json().get(k) for k in ('error', 'error_description')}
 
     return result
+
 
 def get_token_client_credentials_auth(client_id, client_secret):
     url = '{}/backstage/oauth/token'.format(BASE_URL)
@@ -96,7 +100,7 @@ def get_token_client_credentials_auth(client_id, client_secret):
         LOGGER.info("Got an access token.")
         result = {"token": response.json().get('access_token', None)}
     elif response.status_code >= 400 and response.status_code < 500:
-        result = {k: response.json().get(k) for k in ('error','error_description')}
+        result = {k: response.json().get(k) for k in ('error', 'error_description')}
 
     return result
 
@@ -115,6 +119,7 @@ def generate_token(client_id, client_secret, username, password):
                                 token_result.get('error_description')))
 
     return token
+
 
 def parse_campaign_performance(campaign_performance):
     return {
@@ -138,9 +143,11 @@ def parse_campaign_performance(campaign_performance):
         'conversions_value': float(campaign_performance.get('conversions_value', 0.0)),
     }
 
+
 def fetch_campaign_performance(config, state, access_token, account_id):
-    url = ('{}/backstage/api/1.0/{}/reports/campaign-summary/dimensions/campaign_day_breakdown' #pylint: disable=line-too-long
-           .format(BASE_URL, account_id))
+    url = (
+        '{}/backstage/api/1.0/{}/reports/campaign-summary/dimensions/campaign_day_breakdown'  # pylint: disable=line-too-long
+            .format(BASE_URL, account_id))
 
     params = {
         'start_date': state.get('start_date', config.get('start_date')),
@@ -194,6 +201,7 @@ def parse_campaign(campaign):
         'status': str(campaign.get('status', '')),
     }
 
+
 def fetch_campaigns(access_token, account_id):
     url = '{}/backstage/api/1.0/{}/campaigns/'.format(BASE_URL, account_id)
 
@@ -217,6 +225,48 @@ def sync_campaigns(access_token, account_id):
     LOGGER.info("Done syncing campaigns.")
 
 
+def parse_account(account):
+    return {
+        'id': int(account['id']),
+        'name': str(account['name']),
+        'account_id': str(account['account_id']),
+        'partner_types': str(account.get('partner_types', '')),
+        'type': str(account.get('type', '')),
+        'campaign_types': str(account.get('campaign_types', '')),
+        'currency': str(account.get('currency', '')),
+    }
+
+
+def fetch_allowed_accounts(access_token, account_id):
+    """
+    Fetch a list of current user's permitted accounts
+
+    See Backstage docs: Users Section 1.2.2
+    """
+    url = '{}/backstage/api/1.0/users/current/allowed-accounts/'.format(BASE_URL, account_id)
+
+    response = request(url, access_token)
+    return response.json().get('results')
+
+
+def sync_allowed_accounts(access_token, account_id):
+    accounts = fetch_allowed_accounts(access_token, account_id)
+    time_extracted = utils.now()
+
+    LOGGER.info('Synced {} accounts.'.format(len(accounts)))
+
+    for record in accounts:
+        parsed_accounts = parse_account(record)
+
+        singer.write_record('accounts',
+                            parsed_accounts,
+                            time_extracted=time_extracted)
+
+    LOGGER.info("Done syncing accounts.")
+
+    return accounts
+
+
 def verify_account_access(access_token, account_id):
     url = '{}/backstage/api/1.0/token-details/'.format(BASE_URL)
 
@@ -230,6 +280,7 @@ def verify_account_access(access_token, account_id):
 
     LOGGER.info("Verified account access via token details endpoint.")
     return account_id
+
 
 def validate_config(config):
     required_keys = ['username', 'password', 'account_id',
@@ -298,6 +349,10 @@ def do_sync(args):
         username=config.get('username'),
         password=config.get('password'))
 
+    singer.write_schema('account',
+                        schemas.account,
+                        key_properties=['id'])
+
     singer.write_schema('campaigns',
                         schemas.campaign,
                         key_properties=['id'])
@@ -308,9 +363,15 @@ def do_sync(args):
 
     config['account_id'] = verify_account_access(access_token, config.get('account_id'))
 
-    sync_campaigns(access_token, config.get('account_id'))
-    sync_campaign_performance(config, state, access_token,
-                              config.get('account_id'))
+    # Sync accounts and then return all accounts for use below
+    accounts = sync_allowed_accounts(access_token, config.get('account_id'))
+
+    # Iterate over accounts
+    for account in accounts:
+        sync_campaigns(access_token, account['account_id'])
+        sync_campaign_performance(config, state, access_token,
+                                  account['account_id'])
+
 
 def main_impl():
     parser = argparse.ArgumentParser()
@@ -328,13 +389,13 @@ def main_impl():
         LOGGER.fatal("Run failed.")
         exit(1)
 
+
 def main():
     try:
         main_impl()
     except Exception as exc:
         LOGGER.critical(exc)
         raise exc
-
 
 
 if __name__ == '__main__':
