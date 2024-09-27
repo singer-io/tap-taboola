@@ -6,6 +6,10 @@ campaign = {
             'type': 'integer',
             'description': 'The ID of this campaign',
         },
+        'campaign_name': {
+            'type': 'string',
+            'description': 'The name of this campaign',
+        },
         'advertiser_id': {
             'type': 'string',
             'description': 'i.e. taboola-demo-advertiser',
