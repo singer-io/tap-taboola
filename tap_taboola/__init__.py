@@ -19,11 +19,20 @@ import requests
 
 import backoff
 
-import tap_taboola.schemas as schemas
+import tap_taboola.schema as schemas
+from tap_taboola.discover import discover
 
 LOGGER = singer.get_logger()
 
 BASE_URL = 'https://backstage.taboola.com'
+
+
+def do_discover():
+
+    LOGGER.info("Starting discovery")
+    catalog = discover()
+    json.dump(catalog, sys.stdout, indent=2)
+    LOGGER.info("Finished discover")
 
 
 @backoff.on_exception(backoff.expo,
@@ -319,11 +328,16 @@ def main_impl():
         '-c', '--config', help='Config file', required=True)
     parser.add_argument(
         '-s', '--state', help='State file')
+    parser.add_argument('-d', '--discover', help='Discovery mode', action='store_true')
 
     args = parser.parse_args()
 
     try:
-        do_sync(args)
+
+        if args.discover:
+            do_discover()
+        else:
+            do_sync(args)
     except RuntimeError:
         LOGGER.fatal("Run failed.")
         exit(1)
