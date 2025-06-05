@@ -23,8 +23,3 @@ class TestDateRangeUtility(unittest.TestCase):
 
         self.assertEqual(
             list(tap_taboola.fetch_campaigns('fake-access-token', 123))        )
-
-
-if __name__ == '__main__':
-    unittest.main()
-

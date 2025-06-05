@@ -83,12 +83,12 @@ class Campaign(Stream):
     replication_keys = "created_at"
     replication_method = "INCREMENTAL"
 
+
 class CampaignPerformance(Stream):
     name = "Campaign Performance"
     key_properties = ["id"]
     replication_keys = "created_at"
     replication_method = "INCREMENTAL"
 
-STREAMS = {"campaigns": Campaign,
-           "campaign_performance":CampaignPerformance
-           }
+
+STREAMS = {"campaigns": Campaign, "campaign_performance": CampaignPerformance}
