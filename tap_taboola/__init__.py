@@ -50,43 +50,6 @@ def is_selected(stream_catalog):
     return inclusion == "automatic"
 
 
-def get_streams_to_replicate(config, state, catalog):
-    streams = []
-    campaign_substreams = []
-    list_substreams = []
-
-    if not catalog:
-        return streams, campaign_substreams, list_substreams
-
-    for stream_catalog in catalog.streams:
-        if not is_selected(stream_catalog):
-            LOGGER.info(
-                "'{}' is not marked selected, skipping.".format(stream_catalog.stream)
-            )
-            continue
-
-        for available_stream in STREAMS:
-            if available_stream.matches_catalog(stream_catalog):
-                if not available_stream.requirements_met(catalog):
-                    raise RuntimeError(
-                        "{} requires that that the following are selected: {}".format(
-                            stream_catalog.stream, ",".join(available_stream.REQUIRES)
-                        )
-                    )
-
-                to_add = available_stream(config, state, stream_catalog)
-
-                if stream_catalog.stream in ["campaigns", "campaign_performance"]:
-                    # the others will be triggered by these streams
-                    streams.append(to_add)
-
-                elif stream_catalog.stream.startswith("campaigns"):
-                    campaign_substreams.append(to_add)
-                    to_add.write_schema()
-
-    return streams, campaign_substreams, list_substreams
-
-
 @backoff.on_exception(
     backoff.expo,
     (requests.exceptions.RequestException),
