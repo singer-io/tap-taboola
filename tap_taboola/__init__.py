@@ -30,27 +30,24 @@ def do_discover():
     LOGGER.info("Finished discover")
 
 
-
-
 def is_selected(stream_catalog):
     metadata = singer.metadata.to_map(stream_catalog.metadata)
     stream_metadata = metadata.get((), {})
 
-    inclusion = stream_metadata.get('inclusion')
+    inclusion = stream_metadata.get("inclusion")
 
-    if stream_metadata.get('selected') is not None:
-        selected = stream_metadata.get('selected')
+    if stream_metadata.get("selected") is not None:
+        selected = stream_metadata.get("selected")
     else:
-        selected = stream_metadata.get('selected-by-default')
+        selected = stream_metadata.get("selected-by-default")
 
-    if inclusion == 'unsupported':
+    if inclusion == "unsupported":
         return False
 
     elif selected is not None:
         return selected
 
-    return inclusion == 'automatic'
-
+    return inclusion == "automatic"
 
 
 def get_streams_to_replicate(config, state, catalog):
@@ -63,30 +60,29 @@ def get_streams_to_replicate(config, state, catalog):
 
     for stream_catalog in catalog.streams:
         if not is_selected(stream_catalog):
-            LOGGER.info("'{}' is not marked selected, skipping."
-                        .format(stream_catalog.stream))
+            LOGGER.info(
+                "'{}' is not marked selected, skipping.".format(stream_catalog.stream)
+            )
             continue
 
         for available_stream in STREAMS:
             if available_stream.matches_catalog(stream_catalog):
                 if not available_stream.requirements_met(catalog):
                     raise RuntimeError(
-                        "{} requires that that the following are selected: {}"
-                        .format(stream_catalog.stream,
-                                ','.join(available_stream.REQUIRES)))
+                        "{} requires that that the following are selected: {}".format(
+                            stream_catalog.stream, ",".join(available_stream.REQUIRES)
+                        )
+                    )
 
-                to_add = available_stream(
-                    config, state, stream_catalog)
+                to_add = available_stream(config, state, stream_catalog)
 
-                if stream_catalog.stream in ['campaigns', 'campaign_performance']:
+                if stream_catalog.stream in ["campaigns", "campaign_performance"]:
                     # the others will be triggered by these streams
                     streams.append(to_add)
 
-                elif stream_catalog.stream.startswith('campaigns'):
+                elif stream_catalog.stream.startswith("campaigns"):
                     campaign_substreams.append(to_add)
                     to_add.write_schema()
-
-
 
     return streams, campaign_substreams, list_substreams
 
@@ -322,8 +318,6 @@ def verify_account_access(access_token, account_id):
     return account_id
 
 
-
-
 def load_config(filename):
     config = {}
 
@@ -334,7 +328,6 @@ def load_config(filename):
     except:
         LOGGER.fatal("Failed to decode config file. Is it valid json?")
         raise RuntimeError
-
 
     return config
 
@@ -350,6 +343,7 @@ def load_state(filename):
         LOGGER.fatal("Failed to decode state file. Is it valid json?")
         raise RuntimeError
 
+
 def get_streams_to_replicate(config, state, catalog):
     streams = []
     campaign_substreams = []
@@ -360,30 +354,31 @@ def get_streams_to_replicate(config, state, catalog):
 
     for stream_catalog in catalog.streams:
         if not is_selected(stream_catalog):
-            LOGGER.info("'{}' is not marked selected, skipping."
-                        .format(stream_catalog.stream))
+            LOGGER.info(
+                "'{}' is not marked selected, skipping.".format(stream_catalog.stream)
+            )
             continue
 
         for available_stream in STREAMS:
             if available_stream.matches_catalog(stream_catalog):
                 if not available_stream.requirements_met(catalog):
                     raise RuntimeError(
-                        "{} requires that that the following are selected: {}"
-                        .format(stream_catalog.stream,
-                                ','.join(available_stream.REQUIRES)))
+                        "{} requires that that the following are selected: {}".format(
+                            stream_catalog.stream, ",".join(available_stream.REQUIRES)
+                        )
+                    )
 
-                to_add = available_stream(
-                    config, state, stream_catalog)
+                to_add = available_stream(config, state, stream_catalog)
 
-                if stream_catalog.stream in ['campaigns', 'campaign_performance']:
+                if stream_catalog.stream in ["campaigns", "campaign_performance"]:
                     # the others will be triggered by these streams
                     streams.append(to_add)
 
-                elif stream_catalog.stream.startswith('campaign_'):
+                elif stream_catalog.stream.startswith("campaign_"):
                     campaign_substreams.append(to_add)
                     to_add.write_schema()
 
-                elif stream_catalog.stream.startswith('campaign_performance'):
+                elif stream_catalog.stream.startswith("campaign_performance"):
                     list_substreams.append(to_add)
                     to_add.write_schema()
 
@@ -415,8 +410,7 @@ def do_sync(args):
 
     config["account_id"] = verify_account_access(access_token, config["account_id"])
 
-    get_streams_to_replicate(
-            args.config, state, args.catalog)
+    get_streams_to_replicate(args.config, state, args.catalog)
 
     for entry in catalog.streams:
         if not is_selected(entry):
@@ -427,7 +421,6 @@ def do_sync(args):
                 stream = StreamClass(config, state, entry)
                 stream.write_schema()
                 stream.sync(access_token)
-
 
 
 def main_impl():
