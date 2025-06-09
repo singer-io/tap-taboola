@@ -3,23 +3,18 @@
 from decimal import Decimal
 
 import argparse
-import copy
 import datetime
 import json
-import os
 import sys
-import time
-import logging
-
-import dateutil.parser
-
 import singer
 from singer import utils
+from singer import metadata
 import requests
 
 import backoff
 
 import tap_taboola.schema as schemas
+from tap_taboola.streams import STREAMS
 from tap_taboola.discover import discover
 
 LOGGER = singer.get_logger()
@@ -33,6 +28,67 @@ def do_discover():
     catalog = discover()
     json.dump(catalog, sys.stdout, indent=2)
     LOGGER.info("Finished discover")
+
+
+
+
+def is_selected(stream_catalog):
+    metadata = singer.metadata.to_map(stream_catalog.metadata)
+    stream_metadata = metadata.get((), {})
+
+    inclusion = stream_metadata.get('inclusion')
+
+    if stream_metadata.get('selected') is not None:
+        selected = stream_metadata.get('selected')
+    else:
+        selected = stream_metadata.get('selected-by-default')
+
+    if inclusion == 'unsupported':
+        return False
+
+    elif selected is not None:
+        return selected
+
+    return inclusion == 'automatic'
+
+
+
+def get_streams_to_replicate(config, state, catalog):
+    streams = []
+    campaign_substreams = []
+    list_substreams = []
+
+    if not catalog:
+        return streams, campaign_substreams, list_substreams
+
+    for stream_catalog in catalog.streams:
+        if not is_selected(stream_catalog):
+            LOGGER.info("'{}' is not marked selected, skipping."
+                        .format(stream_catalog.stream))
+            continue
+
+        for available_stream in STREAMS:
+            if available_stream.matches_catalog(stream_catalog):
+                if not available_stream.requirements_met(catalog):
+                    raise RuntimeError(
+                        "{} requires that that the following are selected: {}"
+                        .format(stream_catalog.stream,
+                                ','.join(available_stream.REQUIRES)))
+
+                to_add = available_stream(
+                    config, state, stream_catalog)
+
+                if stream_catalog.stream in ['campaigns', 'campaign_performance']:
+                    # the others will be triggered by these streams
+                    streams.append(to_add)
+
+                elif stream_catalog.stream.startswith('campaigns'):
+                    campaign_substreams.append(to_add)
+                    to_add.write_schema()
+
+
+
+    return streams, campaign_substreams, list_substreams
 
 
 @backoff.on_exception(
@@ -127,6 +183,7 @@ def get_token_client_credentials_auth(client_id, client_secret):
 def generate_token(client_id, client_secret, username, password):
     LOGGER.info("Generating new token with password auth")
     token_result = get_token_password_auth(client_id, client_secret, username, password)
+
     if "token" not in token_result:
         LOGGER.info("Retrying with client credentials authentication.")
         token_result = get_token_client_credentials_auth(client_id, client_secret)
@@ -265,36 +322,6 @@ def verify_account_access(access_token, account_id):
     return account_id
 
 
-def validate_config(config):
-    required_keys = [
-        "username",
-        "password",
-        "account_id",
-        "client_id",
-        "client_secret",
-        "start_date",
-    ]
-    missing_keys = []
-    null_keys = []
-    has_errors = False
-
-    for required_key in required_keys:
-        if required_key not in config:
-            missing_keys.append(required_key)
-
-        elif config.get(required_key) is None:
-            null_keys.append(required_key)
-
-    if missing_keys:
-        LOGGER.fatal("Config is missing keys: {}".format(", ".join(missing_keys)))
-        has_errors = True
-
-    if null_keys:
-        LOGGER.fatal("Config has null keys: {}".format(", ".join(null_keys)))
-        has_errors = True
-
-    if has_errors:
-        raise RuntimeError
 
 
 def load_config(filename):
@@ -302,12 +329,12 @@ def load_config(filename):
 
     try:
         with open(filename) as config_file:
+
             config = json.load(config_file)
     except:
         LOGGER.fatal("Failed to decode config file. Is it valid json?")
         raise RuntimeError
 
-    validate_config(config)
 
     return config
 
@@ -323,12 +350,61 @@ def load_state(filename):
         LOGGER.fatal("Failed to decode state file. Is it valid json?")
         raise RuntimeError
 
+def get_streams_to_replicate(config, state, catalog):
+    streams = []
+    campaign_substreams = []
+    list_substreams = []
+
+    if not catalog:
+        return streams, campaign_substreams, list_substreams
+
+    for stream_catalog in catalog.streams:
+        if not is_selected(stream_catalog):
+            LOGGER.info("'{}' is not marked selected, skipping."
+                        .format(stream_catalog.stream))
+            continue
+
+        for available_stream in STREAMS:
+            if available_stream.matches_catalog(stream_catalog):
+                if not available_stream.requirements_met(catalog):
+                    raise RuntimeError(
+                        "{} requires that that the following are selected: {}"
+                        .format(stream_catalog.stream,
+                                ','.join(available_stream.REQUIRES)))
+
+                to_add = available_stream(
+                    config, state, stream_catalog)
+
+                if stream_catalog.stream in ['campaigns', 'campaign_performance']:
+                    # the others will be triggered by these streams
+                    streams.append(to_add)
+
+                elif stream_catalog.stream.startswith('campaign_'):
+                    campaign_substreams.append(to_add)
+                    to_add.write_schema()
+
+                elif stream_catalog.stream.startswith('campaign_performance'):
+                    list_substreams.append(to_add)
+                    to_add.write_schema()
+
+    return streams, campaign_substreams, list_substreams
+
 
 def do_sync(args):
     LOGGER.info("Starting sync.")
 
     config = load_config(args.config)
     state = load_state(args.state)
+
+    # Load catalog
+    try:
+        with open(args.catalog) as f:
+            raw_catalog = json.load(f)
+    except Exception as e:
+        LOGGER.fatal("Failed to load catalog: {}".format(e))
+        raise
+
+    catalog = singer.catalog.Catalog.from_dict(raw_catalog)
 
     access_token = generate_token(
         client_id=config.get("client_id"),
@@ -337,18 +413,21 @@ def do_sync(args):
         password=config.get("password"),
     )
 
-    singer.write_schema("campaigns", schemas.campaign, key_properties=["id"])
+    config["account_id"] = verify_account_access(access_token, config["account_id"])
 
-    singer.write_schema(
-        "campaign_performance",
-        schemas.campaign_performance,
-        key_properties=["campaign_id", "date"],
-    )
+    get_streams_to_replicate(
+            args.config, state, args.catalog)
 
-    config["account_id"] = verify_account_access(access_token, config.get("account_id"))
+    for entry in catalog.streams:
+        if not is_selected(entry):
+            continue
 
-    sync_campaigns(access_token, config.get("account_id"))
-    sync_campaign_performance(config, state, access_token, config.get("account_id"))
+        for StreamClass in STREAMS:
+            if StreamClass.matches_catalog(entry):
+                stream = StreamClass(config, state, entry)
+                stream.write_schema()
+                stream.sync(access_token)
+
 
 
 def main_impl():
@@ -357,7 +436,7 @@ def main_impl():
     parser.add_argument("-c", "--config", help="Config file", required=True)
     parser.add_argument("-s", "--state", help="State file")
     parser.add_argument("-d", "--discover", help="Discovery mode", action="store_true")
-
+    parser.add_argument("-p", "--catalog", help="catalog mode")
     args = parser.parse_args()
 
     try:

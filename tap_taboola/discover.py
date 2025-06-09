@@ -15,7 +15,6 @@ def discover():
 
     for stream_name, schema_dict in schemas.items():
         mdata = field_metadata[stream_name]
-        print(stream_name)
         catalog_entry = {
             "stream": stream_name,
             "tap_stream_id": stream_name,
