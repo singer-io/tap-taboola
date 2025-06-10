@@ -2,107 +2,90 @@
   "type": "object",
   "properties": {
     "id": {
-      "type": "integer",
-      "description": "The ID of this campaign"
+      "type": ["integer", "null"]
     },
     "advertiser_id": {
-      "type": "string",
-      "description": "i.e. taboola-demo-advertiser"
+      "type": ["string", "null"]
     },
     "name": {
-      "type": "string",
-      "description": "i.e. Demo Campaign"
+      "type": ["string", "null"]
     },
     "tracking_code": {
-      "type": "string",
-      "description": "i.e. taboola-track"
+      "type": ["string", "null"]
     },
     "cpc": {
-      "type": "number",
-      "description": "Cost per click for the whole campaign, i.e. 0.25"
+      "type": ["number", "null"]
     },
     "daily_cap": {
-      "type": "number",
-      "description": "i.e. 100"
+      "type": ["number", "null"]
     },
     "spending_limit": {
-      "type": "number",
-      "description": "i.e. 1000"
+      "type": ["number", "null"]
     },
     "spending_limit_model": {
-      "type": "string",
-      "description": "i.e. \"MONTHLY\""
+      "type": ["string", "null"]
     },
     "country_targeting": {
       "type": ["object", "null"],
-      "description": "Country codes to target. Type is like \"INCLUDE\", value is like [\"AU\", \"GB\"]",
       "properties": {
         "type": {
-          "type": "string"
+          "type": ["string", "null"]
         },
         "value": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": ["string", "null"]
           }
         }
       }
     },
     "platform_targeting": {
       "type": ["object", "null"],
-      "description": "Platforms to target. Type is like \"INCLUDE\", value is like [\"TBLT\",\"PHON\"].",
       "properties": {
         "type": {
-          "type": "string"
+          "type": ["string", "null"]
         },
         "value": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": ["string", "null"]
           }
         }
       }
     },
     "publisher_targeting": {
       "type": ["object", "null"],
-      "description": "Publishers to target.",
       "properties": {
         "type": {
-          "type": "string"
+          "type": ["string", "null"]
         },
         "value": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": ["string", "null"]
           }
         }
       }
     },
     "start_date": {
-      "type": "string",
-      "format": "date",
-      "description": "The start date for this campaign."
+      "type": ["string", "null"],
+      "format": "date"
     },
     "end_date": {
-      "type": "string",
-      "format": "date",
-      "description": "The end date for this campaign."
+      "type": ["string", "null"],
+      "format": "date"
     },
     "approval_state": {
-      "type": "string",
-      "description": "Approval state for the campign, i.e. \"APPROVED\"."
+      "type": ["string", "null"]
     },
     "is_active": {
-      "type": "boolean",
-      "description": "Whether or not the campaign is active."
+      "type": ["boolean", "null"]
     },
     "spent": {
-      "type": "number",
-      "description": "i.e. 2.23"
+      "type": ["number", "null"]
     },
     "status": {
-      "type": "string",
-      "description": "i.e. \"RUNNING\""
+      "type": ["string", "null"]
     }
   }
 }

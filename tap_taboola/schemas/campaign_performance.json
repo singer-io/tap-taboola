@@ -2,60 +2,48 @@
   "type": "object",
   "properties": {
     "campaign_id": {
-      "type": "integer"
+      "type": ["integer", "null"]
     },
     "date": {
-      "type": "string",
-      "format": "date",
-      "description": "The start date for this campaign."
+      "type": ["string", "null"],
+      "format": "date"
     },
     "impressions": {
-      "type": "integer",
-      "description": "Total number of impressions"
+      "type": ["integer", "null"]
     },
     "campaign_name": {
-      "type": ["string", "null"],
-      "description": "Human-readable campaign name"
+      "type": ["string", "null"]
     },
     "ctr": {
-      "type": "number",
-      "description": "CTR, calculated as clicks/impressions"
+      "type": ["number", "null"]
     },
     "clicks": {
-      "type": "integer",
-      "description": "Total number of clicks"
+      "type": ["integer", "null"]
     },
     "cpc": {
-      "type": "number",
-      "description": "CPC, calculated as spend/clicks"
+      "type": ["number", "null"]
     },
     "cpm": {
-      "type": "number",
-      "description": "CPM (cost per 1000 impressions), calculated as spend/impressions"
+      "type": ["number", "null"]
     },
     "cpa_conversion_rate": {
-      "type": "number",
-      "description": "Conversion rate calculated as actions/clicks"
+      "type": ["number", "null"]
     },
     "cpa_actions_num": {
-      "type": "integer",
-      "description": "Total actions (a.k.a. conversions)"
+      "type": ["integer", "null"]
     },
     "cpa": {
-      "type": "number",
-      "description": "CPA, calculated as spend/actions"
+      "type": ["number", "null"]
     },
     "spent": {
-      "type": "number",
-      "description": "Total spent amount"
+      "type": ["number", "null"]
     },
     "conversions_value": {
-      "type": ["number", "null"],
-      "description": "Total revenue from conversions"
+      "type": ["number", "null"]
     },
     "currency": {
-      "type": "string",
-      "description": "ISO4217 currency code for columns of type money"
+      "type": ["string", "null"]
     }
-  }
+  },
+  "additionalProperties": false
 }
