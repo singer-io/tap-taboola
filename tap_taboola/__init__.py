@@ -21,6 +21,7 @@ LOGGER = singer.get_logger()
 
 BASE_URL = 'https://backstage.taboola.com'
 
+CONFIG_KEYS = ['username', 'password', 'account_id','client_id', 'client_secret', 'start_date']
 
 def do_discover():
 
@@ -361,8 +362,7 @@ def do_sync(args):
 
 
 def main_impl():
-    parser = argparse.ArgumentParser()
-
+    parser = singer.utils.parse_args(required_config_keys=CONFIG_KEYS)
     parser.add_argument(
         '-c', '--config', help='Config file', required=True)
     parser.add_argument(
