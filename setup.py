@@ -25,5 +25,12 @@ setup(name='tap-taboola',
           [console_scripts]
           tap-taboola=tap_taboola:main
       ''',
+      package_data={
+        "tap_taboola/schemas": [
+            "campaigns.json",
+            "campaign_performance.json"
+        ],
+        },
+      include_package_data=True,
       packages=['tap_taboola']
 )
