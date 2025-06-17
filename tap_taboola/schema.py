@@ -40,7 +40,7 @@ def get_schemas():
 
         mdata = metadata.to_map(mdata)
         # Loop through all keys and make replication keys of automatic inclusion
-        for field_name in schema["properties"].keys():
+        for field_name in schema["properties"]:
 
             if (
                 stream_metadata.replication_keys

@@ -3,7 +3,7 @@ import singer
 from datetime import timedelta
 
 
-TRAILING_DAYS = timedelta(days=30)
+DEFAULT_TRAILING_DAYS  = timedelta(days=30)
 DEFAULT_TIMESTAMP = "2005-01-01T00:00:00Z"
 LOGGER = singer.get_logger()
 
@@ -25,7 +25,7 @@ class Stream:
             if stream_name in selected_streams and stream_name in sync_streams:
                 singer.write_schema(stream_name, schema, self.key_properties)
         except OSError as err:
-            LOGGER.error("OS Error writing schema for: {}".format(stream_name))
+            LOGGER.error("OS Error writing schema for '{}': {}".format(stream_name, err))
             raise err
 
 class Campaign(Stream):

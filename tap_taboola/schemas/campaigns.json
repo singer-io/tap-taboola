@@ -2,90 +2,90 @@
   "type": "object",
   "properties": {
     "id": {
-      "type": ["integer", "null"]
+      "type": [ "null", "integer"]
     },
     "advertiser_id": {
-      "type": ["string", "null"]
+      "type": [ "null", "string"]
     },
     "name": {
-      "type": ["string", "null"]
+      "type": [ "null", "string"]
     },
     "tracking_code": {
-      "type": ["string", "null"]
+      "type": [ "null", "string"]
     },
     "cpc": {
-      "type": ["number", "null"]
+      "type": [ "null", "number"]
     },
     "daily_cap": {
-      "type": ["number", "null"]
+      "type": [ "null", "number"]
     },
     "spending_limit": {
-      "type": ["number", "null"]
+      "type": [ "null", "number"]
     },
     "spending_limit_model": {
-      "type": ["string", "null"]
+      "type": [ "null", "string"]
     },
     "country_targeting": {
-      "type": ["object", "null"],
+      "type": [ "null", "object"],
       "properties": {
         "type": {
-          "type": ["string", "null"]
+          "type": [ "null", "string"]
         },
         "value": {
           "type": "array",
           "items": {
-            "type": ["string", "null"]
+            "type": [ "null", "string"]
           }
         }
       }
     },
     "platform_targeting": {
-      "type": ["object", "null"],
+      "type": [ "null", "object"],
       "properties": {
         "type": {
-          "type": ["string", "null"]
+          "type": [ "null", "string"]
         },
         "value": {
           "type": "array",
           "items": {
-            "type": ["string", "null"]
+            "type": [ "null", "string"]
           }
         }
       }
     },
     "publisher_targeting": {
-      "type": ["object", "null"],
+      "type": [ "null", "object"],
       "properties": {
         "type": {
-          "type": ["string", "null"]
+          "type": [ "null", "string"]
         },
         "value": {
           "type": "array",
           "items": {
-            "type": ["string", "null"]
+            "type": [ "null", "string"]
           }
         }
       }
     },
     "start_date": {
-      "type": ["string", "null"],
+      "type": [ "null", "string"],
       "format": "date"
     },
     "end_date": {
-      "type": ["string", "null"],
+      "type": [ "null", "string"],
       "format": "date"
     },
     "approval_state": {
-      "type": ["string", "null"]
+      "type": [ "null", "string"]
     },
     "is_active": {
-      "type": ["boolean", "null"]
+      "type": [ "null", "boolean"]
     },
     "spent": {
-      "type": ["number", "null"]
+      "type": [ "null", "number"]
     },
     "status": {
-      "type": ["string", "null"]
+      "type": [ "null", "string"]
     }
   }
 }

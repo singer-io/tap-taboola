@@ -21,7 +21,6 @@ LOGGER = singer.get_logger()
 
 BASE_URL = 'https://backstage.taboola.com'
 
-CONFIG_KEYS = ['username', 'password', 'account_id','client_id', 'client_secret', 'start_date']
 
 def do_discover():
 
@@ -280,7 +279,6 @@ def load_state(filename):
     except:
         LOGGER.fatal("Failed to decode state file. Is it valid json?")
         raise RuntimeError
-
 
 
 def do_sync(args):
