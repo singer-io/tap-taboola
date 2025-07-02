@@ -12,7 +12,7 @@ setup(name='tap-taboola',
       install_requires=[
           'singer-python==6.1.1',
           'backoff==2.2.1',
-          'requests==2.32.3',
+          'requests==2.32.4',
           'python-dateutil==2.9.0'
       ],
       extras_require={
