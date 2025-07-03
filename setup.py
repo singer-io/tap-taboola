@@ -2,18 +2,18 @@
 
 from setuptools import setup
 
-setup(name='tap-taboola',
-      version='0.3.1',
-      description='Singer.io tap for extracting data from the Taboola API',
-      author='Fishtown Analytics',
-      url='http://www.singer.io',
-      classifiers=['Programming Language :: Python :: 3 :: Only'],
-      py_modules=['tap_taboola'],
+setup(name="tap-taboola",
+      version="0.3.1",
+      description="Singer.io tap for extracting data from the Taboola API",
+      author="Fishtown Analytics",
+      url="http://www.singer.io",
+      classifiers=["Programming Language :: Python :: 3 :: Only"],
+      py_modules=["tap_taboola"],
       install_requires=[
-          'singer-python==6.1.1',
-          'backoff==2.2.1',
-          'requests==2.32.4',
-          'python-dateutil==2.9.0'
+          "singer-python==6.1.1",
+          "backoff==2.2.1",
+          "requests==2.32.4",
+          "python-dateutil==2.9.0"
       ],
       extras_require={
         "dev": [
@@ -21,16 +21,13 @@ setup(name='tap-taboola',
             "ipdb",
         ]
         },
-      entry_points='''
+      entry_points="""
           [console_scripts]
           tap-taboola=tap_taboola:main
-      ''',
+      """,
       package_data={
-        "tap_taboola/schemas": [
-            "campaigns.json",
-            "campaign_performance.json"
-        ],
+        "tap_taboola": ["schemas/*.json"],
         },
       include_package_data=True,
-      packages=['tap_taboola']
+      packages=["tap_taboola"]
 )
