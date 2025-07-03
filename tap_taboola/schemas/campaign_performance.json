@@ -1,6 +1,14 @@
 {
   "type": "object",
   "properties": {
+    "id": {
+      "type": ["null", "integer"]
+    },
+    "created_at": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+  "properties": {
     "campaign_id": {
       "type": [ "null", "integer"]
     },
