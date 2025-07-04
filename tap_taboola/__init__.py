@@ -36,10 +36,7 @@ def is_selected(stream_catalog):
 
     inclusion = stream_metadata.get("inclusion")
 
-    if stream_metadata.get("selected") is not None:
-        selected = stream_metadata.get("selected")
-    else:
-        selected = stream_metadata.get("selected-by-default")
+    selected = stream_metadata.get("selected")
 
     if inclusion == "unsupported":
         return False
