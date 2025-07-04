@@ -18,7 +18,7 @@ jobs:
           name: 'JSON Validator'
           command: |
             source /usr/local/share/virtualenvs/tap-taboola/bin/activate
-            stitch-validate-json tap-taboola/schemas/*.json
+            stitch-validate-json tap_taboola/schemas/*.json
       - run:
           name: 'pylint'
           command: |
