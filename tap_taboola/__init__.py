@@ -359,7 +359,7 @@ def main_impl():
 
         if args.discover:
             do_discover()
-        else:
+        elif args.catalog:
             do_sync(args)
     except RuntimeError:
         LOGGER.fatal("Run failed.")
