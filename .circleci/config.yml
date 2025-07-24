@@ -12,8 +12,8 @@ jobs:
           command: |
             uv venv --python=3.9 /usr/local/share/virtualenvs/tap-taboola
             source /usr/local/share/virtualenvs/tap-taboola/bin/activate
-            pip install -U 'pip==22.2.2' 'setuptools==65.3.0'
-            pip install .[dev]
+            uv pip install -U 'pip==22.2.2' 'setuptools==65.3.0'
+            uv pip install .[dev]
       - run:
           name: 'pylint'
           command: |
