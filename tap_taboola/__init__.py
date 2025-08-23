@@ -176,6 +176,7 @@ def parse_campaign(campaign):
 
     return {
         'id': int(campaign.get('id')),
+        'campaign_name': str(campaign.get('campaign_name')),
         'advertiser_id': str(campaign.get('advertiser_id', '')),
         'name': str(campaign.get('name', '')),
         'tracking_code': str(campaign.get('tracking_code', '')),
