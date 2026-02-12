@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.0
+  * Add discovery support [#22](https://github.com/singer-io/tap-taboola/pull/22)
+
 ## 0.3.2
   * Bump dependency versions for twistlock compliance [#23](https://github.com/singer-io/tap-taboola/pull/23)
 
