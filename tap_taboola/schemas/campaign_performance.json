@@ -1,0 +1,62 @@
+{
+  "type": "object",
+  "properties": {
+    "campaign_id": {
+      "type": "integer",
+      "description": "Numeric campaign identifier"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "The date of this performance row (YYYY-MM-DD)"
+    },
+    "impressions": {
+      "type": "integer",
+      "description": "Total number of impressions"
+    },
+    "campaign_name": {
+      "type": ["string", "null"],
+      "description": "Human-readable campaign name"
+    },
+    "ctr": {
+      "type": "number",
+      "description": "CTR, calculated as clicks / impressions"
+    },
+    "clicks": {
+      "type": "integer",
+      "description": "Total number of clicks"
+    },
+    "cpc": {
+      "type": "number",
+      "description": "CPC, calculated as spend / clicks"
+    },
+    "cpm": {
+      "type": "number",
+      "description": "CPM, calculated as spend / impressions * 1000"
+    },
+    "cpa_conversion_rate": {
+      "type": "number",
+      "description": "Conversion rate, calculated as actions / clicks"
+    },
+    "cpa_actions_num": {
+      "type": "integer",
+      "description": "Total actions (conversions)"
+    },
+    "cpa": {
+      "type": "number",
+      "description": "CPA, calculated as spend / actions"
+    },
+    "spent": {
+      "type": "number",
+      "description": "Total amount spent"
+    },
+    "conversions_value": {
+      "type": ["number", "null"],
+      "description": "Total revenue from conversions"
+    },
+    "currency": {
+      "type": "string",
+      "description": "ISO 4217 currency code"
+    }
+  }
+}
