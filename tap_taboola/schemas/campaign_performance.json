@@ -1,62 +1,56 @@
 {
   "type": "object",
   "properties": {
+    "id": {
+      "type": ["null", "integer"]
+    },
+    "created_at": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
     "campaign_id": {
-      "type": "integer",
-      "description": "Numeric campaign identifier"
+      "type": [ "null", "integer"]
     },
     "date": {
-      "type": "string",
-      "format": "date",
-      "description": "The date of this performance row (YYYY-MM-DD)"
+      "type": [ "null", "string"],
+      "format": "date"
     },
     "impressions": {
-      "type": "integer",
-      "description": "Total number of impressions"
+      "type": [ "null", "integer"]
     },
     "campaign_name": {
-      "type": ["string", "null"],
-      "description": "Human-readable campaign name"
+      "type": [ "null", "string"]
     },
     "ctr": {
-      "type": "number",
-      "description": "CTR, calculated as clicks / impressions"
+      "type": [ "null", "number"]
     },
     "clicks": {
-      "type": "integer",
-      "description": "Total number of clicks"
+      "type": [ "null", "integer"]
     },
     "cpc": {
-      "type": "number",
-      "description": "CPC, calculated as spend / clicks"
+      "type": [ "null", "number"]
     },
     "cpm": {
-      "type": "number",
-      "description": "CPM, calculated as spend / impressions * 1000"
+      "type": [ "null", "number"]
     },
     "cpa_conversion_rate": {
-      "type": "number",
-      "description": "Conversion rate, calculated as actions / clicks"
+      "type": [ "null", "number"]
     },
     "cpa_actions_num": {
-      "type": "integer",
-      "description": "Total actions (conversions)"
+      "type": [ "null", "integer"]
     },
     "cpa": {
-      "type": "number",
-      "description": "CPA, calculated as spend / actions"
+      "type": [ "null", "number"]
     },
     "spent": {
-      "type": "number",
-      "description": "Total amount spent"
+      "type": [ "null", "number"]
     },
     "conversions_value": {
-      "type": ["number", "null"],
-      "description": "Total revenue from conversions"
+      "type": [ "null", "number"]
     },
     "currency": {
-      "type": "string",
-      "description": "ISO 4217 currency code"
+      "type": [ "null", "string"]
     }
-  }
+  },
+  "additionalProperties": false
 }

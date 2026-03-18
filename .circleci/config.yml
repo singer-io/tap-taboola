@@ -15,6 +15,11 @@ jobs:
             uv pip install -U pip setuptools
             uv pip install .[dev]
       - run:
+          name: 'JSON Validator'
+          command: |
+            source /usr/local/share/virtualenvs/tap-taboola/bin/activate
+            stitch-validate-json tap_taboola/schemas/*.json
+      - run:
           name: 'pylint'
           command: |
             source /usr/local/share/virtualenvs/tap-taboola/bin/activate

@@ -3,23 +3,19 @@
 from decimal import Decimal
 
 import argparse
-import copy
 import datetime
 import json
-import os
 import sys
-import time
-import logging
-
-import dateutil.parser
-
 import singer
 from singer import utils
+from singer import metadata
 import requests
 
 import backoff
 
-import tap_taboola.schemas as schemas
+import tap_taboola.schema as schemas
+from tap_taboola.streams import STREAMS
+from tap_taboola.discover import discover
 
 LOGGER = singer.get_logger()
 
@@ -123,6 +119,31 @@ def _mock_request(url, params=None):
     if '/campaigns/' in url:
         return _MockResponse({'results': _MOCK_CAMPAIGNS})
     return _MockResponse({})
+
+
+def do_discover():
+
+    LOGGER.info("Starting discovery")
+    catalog = discover()
+    json.dump(catalog.to_dict(), sys.stdout, indent=2)
+    LOGGER.info("Finished discover")
+
+
+def is_selected(stream_catalog):
+    metadata = singer.metadata.to_map(stream_catalog.metadata)
+    stream_metadata = metadata.get((), {})
+
+    inclusion = stream_metadata.get("inclusion")
+
+    selected = stream_metadata.get("selected")
+
+    if inclusion == "unsupported":
+        return False
+
+    elif selected is not None:
+        return selected
+
+    return inclusion == "automatic"
 
 
 @backoff.on_exception(backoff.expo,
@@ -510,38 +531,36 @@ def do_sync(args):
     state = load_state(args.state)
     catalog = _load_catalog(getattr(args, 'catalog', None))
 
-    campaigns_fields = _get_selected_fields(catalog, 'campaigns')
-    perf_fields = _get_selected_fields(catalog, 'campaign_performance')
-
-    # Write schemas before authenticating so tap-tester's check-mode phase
-    # (which runs the tap without a catalog and expects at least one valid
-    # Singer JSON line) succeeds even when credentials are not present.
-    singer.write_schema('campaigns',
-                        schemas.campaign,
-                        key_properties=['id'])
-
-    singer.write_schema('campaign_performance',
-                        schemas.campaign_performance,
-                        key_properties=['campaign_id', 'date'])
-
+    # Load catalog
     try:
-        access_token = generate_token(
-            client_id=config.get('client_id'),
-            client_secret=config.get('client_secret'),
-            username=config.get('username'),
-            password=config.get('password'))
+        with open(args.catalog) as f:
+            raw_catalog = json.load(f)
+    except Exception as e:
+        LOGGER.fatal("Failed to load catalog: {}".format(e))
+        raise
 
-        config['account_id'] = verify_account_access(access_token, config.get('account_id'))
+    catalog = singer.catalog.Catalog.from_dict(raw_catalog)
 
-        sync_campaigns(access_token, config.get('account_id'),
-                       selected_fields=campaigns_fields)
-        sync_campaign_performance(config, state, access_token,
-                                  config.get('account_id'),
-                                  selected_fields=perf_fields)
-    except Exception as exc:  # pylint: disable=broad-except
-        LOGGER.warning("Sync incomplete (credentials may be missing): %s", exc)
-        # Exit 0 so tap-tester treats this as a zero-record sync rather than
-        # a hard failure.
+    access_token = generate_token(
+        client_id=config.get("client_id"),
+        client_secret=config.get("client_secret"),
+        username=config.get("username"),
+        password=config.get("password"),
+    )
+
+    config["account_id"] = verify_account_access(access_token, config["account_id"])
+
+
+    for entry in catalog.streams:
+        if not is_selected(entry):
+            continue
+
+        for StreamClass in STREAMS:
+            if StreamClass.matches_catalog(entry):
+                stream = StreamClass(config, state, entry)
+                stream.write_schema()
+                stream.sync(access_token)
+
 
 def main_impl():
     parser = argparse.ArgumentParser()
@@ -550,12 +569,8 @@ def main_impl():
         '-c', '--config', help='Config file', required=True)
     parser.add_argument(
         '-s', '--state', help='State file')
-    parser.add_argument(
-        '-p', '--catalog', help='Catalog file')
-    parser.add_argument(
-        '-d', '--discover', action='store_true',
-        help='Run discovery mode and write catalog to stdout')
-
+    parser.add_argument('-d', '--discover', help='Discovery mode', action='store_true')
+    parser.add_argument( "--catalog", help="catalog mode")
     args = parser.parse_args()
 
     if args.discover:
@@ -563,7 +578,11 @@ def main_impl():
         return
 
     try:
-        do_sync(args)
+
+        if args.discover:
+            do_discover()
+        elif args.catalog:
+            do_sync(args)
     except RuntimeError:
         LOGGER.fatal("Run failed.")
         exit(1)
