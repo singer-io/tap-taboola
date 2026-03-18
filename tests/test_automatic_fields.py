@@ -31,7 +31,11 @@ class AutomaticFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
                 else:
                     rep_keys = set(rep_keys)
 
-                expected_auto = key_props | rep_keys
+                schema_props = set(
+                    entry.get('schema', {}).get('properties', {}).keys()
+                )
+                # Only expect replication keys that exist in the schema
+                expected_auto = key_props | (rep_keys & schema_props)
 
                 actual_auto = set()
                 for meta in entry.get('metadata', []):

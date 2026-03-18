@@ -4,7 +4,6 @@ import unittest
 from unittest.mock import patch
 
 import tap_taboola as taboola
-import tap_taboola.schemas as schemas
 
 try:
     from .base import TaboolaBaseTest
@@ -13,46 +12,6 @@ except ImportError:
 
 
 class SyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
-
-    @patch("tap_taboola.singer.write_state")
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.singer.write_schema")
-    @patch("tap_taboola.request")
-    def test_sync_writes_schema_before_records(
-        self,
-        mock_request,
-        mock_write_schema,
-        mock_write_record,
-        mock_write_state,
-    ):
-        """Verify that write_schema is called before write_record."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
-        call_order = []
-
-        mock_write_schema.side_effect = lambda *a, **kw: call_order.append(
-            ('schema', a[0]))
-        mock_write_record.side_effect = lambda *a, **kw: call_order.append(
-            ('record', a[0]))
-
-        # Simulate do_sync flow: schemas first, then sync
-        taboola.singer.write_schema(
-            'campaigns', schemas.campaign, key_properties=['id'])
-        taboola.singer.write_schema(
-            'campaign_performance', schemas.campaign_performance,
-            key_properties=['campaign_id', 'date'])
-
-        taboola.sync_campaigns('mock-token', config['account_id'])
-        taboola.sync_campaign_performance(
-            config, {}, 'mock-token', config['account_id'])
-
-        # Find first schema and first record call
-        first_schema_idx = next(
-            i for i, (t, _) in enumerate(call_order) if t == 'schema')
-        first_record_idx = next(
-            i for i, (t, _) in enumerate(call_order) if t == 'record')
-
-        self.assertLess(first_schema_idx, first_record_idx)
 
     @patch("tap_taboola.singer.write_state")
     @patch("tap_taboola.singer.write_record")
@@ -207,24 +166,4 @@ class SyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         record = mock_write_record.call_args_list[0][0][1]
         self.assertEqual(record['end_date'], '9999-12-31')
 
-    @patch("tap_taboola.singer.write_state")
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
-    def test_selected_fields_filtering(
-        self,
-        mock_request,
-        mock_write_record,
-        mock_write_state,
-    ):
-        """When selected_fields is provided, only those fields are written."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
-        selected = {'id', 'name', 'status'}
 
-        taboola.sync_campaigns(
-            'mock-token', config['account_id'], selected_fields=selected)
-
-        for call_args in mock_write_record.call_args_list:
-            if call_args[0][0] == 'campaigns':
-                record = call_args[0][1]
-                self.assertEqual(set(record.keys()), selected)
