@@ -1,29 +1,60 @@
-"""Integration tests for tap-taboola pagination."""
-from tap_tester.base_suite_tests.pagination_test import PaginationTest
+"""Integration test: pagination — Taboola returns all records in a single
+response so no multi-page fetching is needed, but we verify the tap handles
+the full result set correctly."""
+import unittest
+from unittest.mock import patch
 
-from base import TaboolaBaseTest  # pylint: disable=import-error
+import tap_taboola as taboola
+
+try:
+    from .base import TaboolaBaseTest
+except ImportError:
+    from base import TaboolaBaseTest
 
 
-class TaboolaPaginationTest(PaginationTest, TaboolaBaseTest):
-    """Verify all records across all result pages are replicated."""
+class PaginationIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
-    @staticmethod
-    def name():
-        """Return unique test-run name."""
-        return "tap_tester_taboola_pagination_test"
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.request")
+    def test_all_campaigns_returned_in_single_response(
+        self,
+        mock_request,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """Verify all campaigns are written when the API returns them
+        in a single response (no pagination)."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
 
-    def streams_to_test(self):
-        """Return all expected streams."""
-        return self.expected_stream_names().difference(self.excluded_stream_reasons().keys())
+        taboola.sync_campaigns('mock-token', config['account_id'])
 
-    def excluded_stream_reasons(self):
-        """Return documented reasons for streams excluded from this test."""
-        return {
-            "campaigns": "Taboola API returns all campaigns in a single response; no pagination.",
-            "campaign_performance": "Taboola API returns all performance rows in a single response; no pagination.",
-        }
+        campaign_records = [
+            c for c in mock_write_record.call_args_list
+            if c[0][0] == 'campaigns'
+        ]
+        self.assertEqual(len(campaign_records), len(self.MOCK_CAMPAIGNS))
 
-    def test_excluded_streams_are_documented(self):
-        """Verify each excluded stream has a documented reason."""
-        excluded = self.expected_stream_names().difference(self.streams_to_test())
-        self.assertSetEqual(excluded, set(self.excluded_stream_reasons().keys()))
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.request")
+    def test_all_performance_rows_returned_in_single_response(
+        self,
+        mock_request,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """Verify all campaign_performance rows are written when the API
+        returns them in a single response (no pagination)."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+
+        taboola.sync_campaign_performance(
+            config, {}, 'mock-token', config['account_id'])
+
+        perf_records = [
+            c for c in mock_write_record.call_args_list
+            if c[0][0] == 'campaign_performance'
+        ]
+        self.assertEqual(len(perf_records), len(self.MOCK_CAMPAIGN_PERFORMANCE))

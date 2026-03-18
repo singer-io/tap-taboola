@@ -1,96 +1,217 @@
-"""Base class for tap-taboola integration tests.
-
-Follows the same pattern as tap-sendgrid:
-  - Extends BaseCase from tap_tester.base_suite_tests.base_case
-  - Does NOT import tap_taboola at module level
-  - Credentials are read from environment variables
-  - _generate_value drives schema validation when API data is unavailable
 """
-import os
+Base test class for mock integration tests, modeled on tap-3plcentral.
 
-# Enable mock mode for every tap subprocess spawned by tap-tester.
-# The tap checks this flag and substitutes fixture data for all outbound
-# HTTP calls, so the tests run without real Taboola credentials.
-os.environ['TAP_TABOOLA_MOCK'] = '1'
+These tests run the real tap code against mocked API responses — no external
+tap-tester dependency required.
+"""
+import json
+import unittest
+from io import StringIO
+from unittest.mock import MagicMock, patch
 
-from tap_tester.base_suite_tests.base_case import BaseCase
+import tap_taboola as taboola
+import tap_taboola.schemas as schemas
 
 
-class TaboolaBaseTest(BaseCase):
+class MockResponse:
+    """Minimal requests.Response stand-in used in mock mode."""
 
-    start_date = "2023-01-01T00:00:00Z"
+    def __init__(self, payload, status_code=200):
+        self._payload = payload
+        self.status_code = status_code
 
-    @staticmethod
-    def tap_name():
-        return "tap-taboola"
+    def json(self):
+        return self._payload
 
-    @staticmethod
-    def get_type():
-        return "platform.taboola"
+    def raise_for_status(self):
+        pass
 
-    @staticmethod
-    def get_credentials():
-        return {
-            "client_id":     os.getenv("TAP_TABOOLA_CLIENT_ID",     ""),
-            "client_secret": os.getenv("TAP_TABOOLA_CLIENT_SECRET", ""),
-            "username":      os.getenv("TAP_TABOOLA_USERNAME",       ""),
-            "password":      os.getenv("TAP_TABOOLA_PASSWORD",       ""),
-        }
 
-    def get_properties(self, original=True):  # pylint: disable=unused-argument
-        return {
-            "start_date": self.start_date,
-            "account_id": os.getenv("TAP_TABOOLA_ACCOUNT_ID", ""),
-        }
+class TaboolaBaseTest:
+    """Shared helpers and metadata expectations for mock integration tests."""
+
+    default_start_date = "2023-01-01T00:00:00Z"
+    PRIMARY_KEYS = "primary_keys"
+    REPLICATION_METHOD = "replication_method"
+    REPLICATION_KEYS = "replication_keys"
+    OBEYS_START_DATE = "obeys_start_date"
+
+    default_config = {
+        "username": "test_user",
+        "password": "test_password",
+        "account_id": "test-account-id",
+        "client_id": "test_client_id",
+        "client_secret": "test_client_secret",
+        "start_date": "2023-01-01T00:00:00Z",
+    }
+
+    MOCK_CAMPAIGNS = [
+        {
+            'id': '1',
+            'advertiser_id': 'mock-advertiser',
+            'name': 'Mock Campaign Alpha',
+            'tracking_code': 'trk-alpha',
+            'cpc': '0.50',
+            'daily_cap': '100.0',
+            'spending_limit': '1000.0',
+            'spending_limit_model': 'ENTIRE',
+            'country_targeting': {'type': 'INCLUDE', 'value': ['US']},
+            'platform_targeting': None,
+            'publisher_targeting': None,
+            'start_date': '2024-01-01',
+            'end_date': None,
+            'approval_state': 'APPROVED',
+            'is_active': True,
+            'spent': '50.0',
+            'status': 'RUNNING',
+        },
+        {
+            'id': '2',
+            'advertiser_id': 'mock-advertiser',
+            'name': 'Mock Campaign Beta',
+            'tracking_code': '',
+            'cpc': '0.30',
+            'daily_cap': '75.0',
+            'spending_limit': '500.0',
+            'spending_limit_model': 'MONTHLY',
+            'country_targeting': None,
+            'platform_targeting': None,
+            'publisher_targeting': None,
+            'start_date': None,
+            'end_date': None,
+            'approval_state': 'PENDING',
+            'is_active': False,
+            'spent': '0.0',
+            'status': 'PAUSED',
+        },
+    ]
+
+    MOCK_CAMPAIGN_PERFORMANCE = [
+        {
+            'campaign': '1',
+            'impressions': '8000',
+            'ctr': '0.03',
+            'cpc': '0.40',
+            'cpa_actions_num': '3',
+            'cpa': '0.8',
+            'cpm': '2.0',
+            'clicks': '300',
+            'currency': 'USD',
+            'cpa_conversion_rate': '0.01',
+            'spent': '120.0',
+            'date': '2023-07-01 00:00:00.000000',
+            'campaign_name': 'Mock Campaign Alpha',
+            'conversions_value': '240.0',
+        },
+        {
+            'campaign': '1',
+            'impressions': '10000',
+            'ctr': '0.05',
+            'cpc': '0.50',
+            'cpa_actions_num': '5',
+            'cpa': '1.0',
+            'cpm': '2.5',
+            'clicks': '500',
+            'currency': 'USD',
+            'cpa_conversion_rate': '0.01',
+            'spent': '250.0',
+            'date': '2024-07-01 00:00:00.000000',
+            'campaign_name': 'Mock Campaign Alpha',
+            'conversions_value': '500.0',
+        },
+        {
+            'campaign': '2',
+            'impressions': '5000',
+            'ctr': '0.02',
+            'cpc': '0.30',
+            'cpa_actions_num': '2',
+            'cpa': '1.5',
+            'cpm': '1.8',
+            'clicks': '100',
+            'currency': 'USD',
+            'cpa_conversion_rate': '0.005',
+            'spent': '30.0',
+            'date': '2025-01-15 00:00:00.000000',
+            'campaign_name': 'Mock Campaign Beta',
+            'conversions_value': '36.0',
+        },
+    ]
 
     @classmethod
     def expected_metadata(cls):
         return {
             "campaigns": {
-                cls.PRIMARY_KEYS:       {"id"},
-                cls.REPLICATION_METHOD: cls.FULL_TABLE,
-                cls.REPLICATION_KEYS:   set(),
-                cls.OBEYS_START_DATE:   False,
+                cls.PRIMARY_KEYS: {"id"},
+                cls.REPLICATION_METHOD: "FULL_TABLE",
+                cls.REPLICATION_KEYS: set(),
+                cls.OBEYS_START_DATE: False,
             },
             "campaign_performance": {
-                cls.PRIMARY_KEYS:       {"campaign_id", "date"},
-                cls.REPLICATION_METHOD: cls.INCREMENTAL,
-                cls.REPLICATION_KEYS:   {"date"},
-                cls.OBEYS_START_DATE:   True,
+                cls.PRIMARY_KEYS: {"campaign_id", "date"},
+                cls.REPLICATION_METHOD: "INCREMENTAL",
+                cls.REPLICATION_KEYS: {"date"},
+                cls.OBEYS_START_DATE: True,
             },
         }
 
     @staticmethod
-    def _schema_type(schema):
-        """Return the concrete JSON-schema type, resolving null-union types."""
-        t = schema.get("type", "object")
-        if isinstance(t, list):
-            non_null = [x for x in t if x != "null"]
-            return non_null[0] if non_null else "null"
-        return t
+    def _run_discover():
+        """Run do_discover() and capture the catalog from stdout."""
+        captured = StringIO()
+        with patch('sys.stdout', captured):
+            taboola.do_discover()
+        captured.seek(0)
+        return json.loads(captured.read())
 
     @staticmethod
-    def _generate_value(schema):
-        """Generate one valid mock value for a JSON-schema fragment."""
-        if "enum" in schema and schema["enum"]:
-            return schema["enum"][0]
-        t = TaboolaBaseTest._schema_type(schema)
-        if t == "object":
-            props = schema.get("properties", {})
-            required = set(schema.get("required", []))
-            return {
-                k: TaboolaBaseTest._generate_value(v)
-                for k, v in props.items()
-                if k in required or TaboolaBaseTest._schema_type(v) != "null"
-            }
-        if t == "array":
-            return [TaboolaBaseTest._generate_value(schema.get("items", {"type": "string"}))]
-        if t == "string":
-            fmt = schema.get("format")
-            if fmt == "date-time":
-                return "2024-01-01T00:00:00Z"
-            if fmt == "date":
-                return "2024-01-01"
-            return "mock"
-        return {"integer": 1, "number": 1.0, "boolean": True}.get(t)
+    def _make_selected_catalog(stream_names=None):
+        """Build a catalog dict with selected=True for the given streams.
+        If stream_names is None, select all streams."""
+        captured = StringIO()
+        with patch('sys.stdout', captured):
+            taboola.do_discover()
+        captured.seek(0)
+        catalog = json.loads(captured.read())
+
+        for entry in catalog.get('streams', []):
+            stream_name = entry.get('tap_stream_id', entry.get('stream'))
+            is_selected = stream_names is None or stream_name in stream_names
+
+            for meta in entry.get('metadata', []):
+                breadcrumb = meta.get('breadcrumb', [])
+                if breadcrumb == [] or breadcrumb == ():
+                    meta['metadata']['selected'] = is_selected
+                elif len(breadcrumb) == 2 and breadcrumb[0] == 'properties':
+                    meta['metadata']['selected'] = is_selected
+
+        return catalog
+
+    @classmethod
+    def _mock_request(cls, campaigns=None, performance=None,
+                      account_id='test-account-id'):
+        """Create a mock side_effect for tap_taboola.request."""
+        if campaigns is None:
+            campaigns = cls.MOCK_CAMPAIGNS
+        if performance is None:
+            performance = cls.MOCK_CAMPAIGN_PERFORMANCE
+
+        def mock_fn(url, access_token, params={}):
+            if 'token-details' in url:
+                return MockResponse({'account_id': account_id})
+            if 'reports/campaign-summary' in url:
+                start_date = params.get('start_date', '')
+                if start_date:
+                    start_str = str(start_date)[:10]
+                    results = [
+                        r for r in performance
+                        if r['date'][:10] >= start_str
+                    ]
+                else:
+                    results = list(performance)
+                return MockResponse({'results': results})
+            if '/campaigns/' in url:
+                return MockResponse({'results': campaigns})
+            return MockResponse({})
+
+        return mock_fn
 

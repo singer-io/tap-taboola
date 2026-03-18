@@ -1,54 +1,129 @@
-"""Integration tests for tap-taboola all-fields replication."""
-import json
-from pathlib import Path
+"""Integration test: sync all streams with mocked API responses
+and verify all fields are replicated."""
+import unittest
+from unittest.mock import patch
 
-from tap_tester.base_suite_tests.all_fields_test import AllFieldsTest
+import tap_taboola as taboola
+import tap_taboola.schemas as schemas
 
-from base import TaboolaBaseTest  # pylint: disable=import-error
+try:
+    from .base import TaboolaBaseTest
+except ImportError:
+    from base import TaboolaBaseTest
 
-_SCHEMA_DIR = Path(__file__).resolve().parents[1] / "tap_taboola" / "schemas"
 
+class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
-class TaboolaAllFieldsTest(AllFieldsTest, TaboolaBaseTest):
-    """Verify all selected fields are replicated for all streams.
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.singer.write_schema")
+    @patch("tap_taboola.request")
+    def test_sync_all_streams_writes_records(
+        self,
+        mock_request,
+        mock_write_schema,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """Sync both streams with mocked API data and verify
+        records are written for each stream."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+        state = {}
 
-    Streams with real API data: assert actual fields match schema.
-    Streams with no API data: generate a mock record via _generate_value
-    and assert it satisfies the schema's required keys.
-    """
+        # Write schemas (as do_sync does)
+        taboola.singer.write_schema(
+            'campaigns', schemas.campaign, key_properties=['id'])
+        taboola.singer.write_schema(
+            'campaign_performance', schemas.campaign_performance,
+            key_properties=['campaign_id', 'date'])
 
-    @staticmethod
-    def name():
-        """Return unique test-run name."""
-        return "tap_tester_taboola_all_fields_test"
+        # Sync both streams
+        taboola.sync_campaigns('mock-token', config['account_id'])
+        taboola.sync_campaign_performance(
+            config, state, 'mock-token', config['account_id'])
 
-    def streams_to_test(self):
-        """Return all expected streams."""
-        return self.expected_stream_names()
+        # Collect all streams that had records written
+        written_streams = {
+            call_args[0][0] for call_args in mock_write_record.call_args_list
+        }
 
-    def test_no_unexpected_streams_replicated(self):
-        """Verify only expected streams are replicated."""
-        self.assertSetEqual(set(AllFieldsTest.synced_records.keys()) - AllFieldsTest.test_streams,
-                            set())
+        self.assertIn('campaigns', written_streams)
+        self.assertIn('campaign_performance', written_streams)
 
-    def test_all_streams_sync_records(self):
-        """Verify every stream with real API data returned at least one record."""
-        for stream in self.streams_to_test():  # pylint: disable=unsubscriptable-object
-            if AllFieldsTest.record_count_by_stream.get(stream, 0) == 0:  # pylint: disable=unsubscriptable-object
-                continue
-            with self.subTest(stream=stream):
-                self.assertGreater(AllFieldsTest.record_count_by_stream[stream], 0)  # pylint: disable=unsubscriptable-object
+        # Verify write_schema was called for both streams
+        schema_streams = {
+            call_args[0][0] for call_args in mock_write_schema.call_args_list
+        }
+        self.assertIn('campaigns', schema_streams)
+        self.assertIn('campaign_performance', schema_streams)
 
-    def test_all_fields_for_streams_are_replicated(self):
-        """Real data: assert all schema fields replicated. No data: validate mock record shape."""
-        for stream in self.streams_to_test():  # pylint: disable=unsubscriptable-object
-            with self.subTest(stream=stream):
-                if AllFieldsTest.record_count_by_stream.get(stream, 0) > 0:  # pylint: disable=unsubscriptable-object
-                    self.assertSetEqual(self.actual_fields.get(stream, set()),
-                                        self.selected_fields.get(stream, set()))
-                else:
-                    with (_SCHEMA_DIR / f"{stream}.json").open(encoding="utf-8") as fh:
-                        schema = json.load(fh)
-                    record = self._generate_value(schema)
-                    self.assertIsInstance(record, dict)
-                    self.assertTrue(set(schema.get("required", [])).issubset(record.keys()))
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.singer.write_schema")
+    @patch("tap_taboola.request")
+    def test_sync_campaigns_only(
+        self,
+        mock_request,
+        mock_write_schema,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """Sync only campaigns and verify only campaign records are written."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+
+        taboola.sync_campaigns('mock-token', config['account_id'])
+
+        written_streams = {
+            call_args[0][0] for call_args in mock_write_record.call_args_list
+        }
+        self.assertIn('campaigns', written_streams)
+        self.assertNotIn('campaign_performance', written_streams)
+
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.singer.write_schema")
+    @patch("tap_taboola.request")
+    def test_all_campaign_fields_replicated(
+        self,
+        mock_request,
+        mock_write_schema,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """Verify all schema fields are present in written campaign records."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+
+        taboola.sync_campaigns('mock-token', config['account_id'])
+
+        expected_fields = set(schemas.campaign['properties'].keys())
+        for call_args in mock_write_record.call_args_list:
+            if call_args[0][0] == 'campaigns':
+                record = call_args[0][1]
+                self.assertEqual(set(record.keys()), expected_fields)
+
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.singer.write_schema")
+    @patch("tap_taboola.request")
+    def test_all_performance_fields_replicated(
+        self,
+        mock_request,
+        mock_write_schema,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """Verify all schema fields are present in written performance records."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+
+        taboola.sync_campaign_performance(
+            config, {}, 'mock-token', config['account_id'])
+
+        expected_fields = set(schemas.campaign_performance['properties'].keys())
+        for call_args in mock_write_record.call_args_list:
+            if call_args[0][0] == 'campaign_performance':
+                record = call_args[0][1]
+                self.assertEqual(set(record.keys()), expected_fields)

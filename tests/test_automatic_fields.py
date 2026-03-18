@@ -1,36 +1,47 @@
-"""Integration tests for tap-taboola automatic-fields (primary keys) replication."""
-from tap_tester.base_suite_tests.automatic_fields_test import MinimumSelectionTest
+"""Integration test: automatic (primary key / replication key) fields are
+always marked as inclusion=automatic in metadata."""
+import unittest
 
-from base import TaboolaBaseTest  # pylint: disable=import-error
+try:
+    from .base import TaboolaBaseTest
+except ImportError:
+    from base import TaboolaBaseTest
 
 
-class TaboolaAutomaticFieldsTest(MinimumSelectionTest, TaboolaBaseTest):
-    """Verify only automatic fields are replicated when no fields are selected."""
+class AutomaticFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
-    @staticmethod
-    def name():
-        """Return unique test-run name."""
-        return "tap_tester_taboola_automatic_fields_test"
+    def test_primary_and_replication_keys_are_automatic(self):
+        """Verify that all primary keys and replication keys are marked
+        as inclusion=automatic in discovery metadata."""
+        catalog = self._run_discover()
 
-    def streams_to_test(self):
-        """Return all expected streams."""
-        return self.expected_stream_names()
+        for entry in catalog.get('streams', []):
+            with self.subTest(stream=entry['tap_stream_id']):
+                # Find root metadata
+                root_meta = {}
+                for meta in entry.get('metadata', []):
+                    if meta.get('breadcrumb', []) in ([], ()):
+                        root_meta = meta.get('metadata', {})
+                        break
 
-    def test_stream_synced_a_record(self):
-        """Verify streams with available data synced at least one record."""
-        for stream in self.streams_to_test():  # pylint: disable=unsubscriptable-object
-            if MinimumSelectionTest.record_count.get(stream, 0) == 0:  # pylint: disable=unsubscriptable-object
-                continue
-            with self.subTest(stream=stream):
-                self.assertGreater(MinimumSelectionTest.record_count[stream], 0)  # pylint: disable=unsubscriptable-object
+                key_props = set(root_meta.get('table-key-properties', []))
+                rep_keys = root_meta.get('valid-replication-keys', [])
+                if isinstance(rep_keys, str):
+                    rep_keys = {rep_keys}
+                else:
+                    rep_keys = set(rep_keys)
 
-    def test_only_automatic_fields_replicated(self):
-        """Verify only automatic fields are replicated for streams with data."""
-        for stream in self.streams_to_test():  # pylint: disable=unsubscriptable-object
-            if MinimumSelectionTest.record_count.get(stream, 0) == 0:  # pylint: disable=unsubscriptable-object
-                continue
-            with self.subTest(stream=stream):
-                self.assertSetEqual(
-                    set(MinimumSelectionTest.actual_field.get(stream, [])),
-                    self.expected_automatic_fields(stream),
+                expected_auto = key_props | rep_keys
+
+                actual_auto = set()
+                for meta in entry.get('metadata', []):
+                    breadcrumb = meta.get('breadcrumb', [])
+                    if len(breadcrumb) == 2 and breadcrumb[0] == 'properties':
+                        if meta.get('metadata', {}).get('inclusion') == 'automatic':
+                            actual_auto.add(breadcrumb[1])
+
+                self.assertTrue(
+                    expected_auto.issubset(actual_auto),
+                    f"Stream '{entry['tap_stream_id']}': expected automatic fields "
+                    f"{expected_auto} but got {actual_auto}",
                 )

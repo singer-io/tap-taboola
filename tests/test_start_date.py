@@ -1,44 +1,110 @@
-"""Integration tests for tap-taboola start_date filtering."""
-from tap_tester.base_suite_tests.start_date_test import StartDateTest
+"""Integration test: start_date controls which campaign_performance
+records are returned from the API."""
+import unittest
+from unittest.mock import patch
 
-from base import TaboolaBaseTest  # pylint: disable=import-error
+import tap_taboola as taboola
+
+try:
+    from .base import TaboolaBaseTest
+except ImportError:
+    from base import TaboolaBaseTest
 
 
-class TaboolaStartDateTest(StartDateTest, TaboolaBaseTest):
-    """Verify start_date filters campaign_performance records correctly.
+class StartDateIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
-    campaigns is a FULL_TABLE stream that does not pass start_date to the API,
-    so it is excluded.  campaign_performance uses start_date as an API query
-    parameter and is included.
-    """
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.request")
+    def test_start_date_filters_campaign_performance(
+        self,
+        mock_request,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """campaign_performance records before start_date should not be
+        returned by the API (mocked filter)."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+        config['start_date'] = '2024-06-01T00:00:00Z'
+        state = {}
 
-    @staticmethod
-    def name():
-        """Return unique test-run name."""
-        return "tap_tester_taboola_start_date_test"
+        taboola.sync_campaign_performance(
+            config, state, 'mock-token', config['account_id'])
 
-    start_date_1 = "2023-01-01T00:00:00Z"
-    start_date_2 = "2024-10-01T00:00:00Z"
+        # With start_date=2024-06-01, only records with date >= 2024-06-01
+        # should be returned: 2024-07-01 and 2025-01-15 (2 of 3)
+        written_records = [
+            call_args[0][1]
+            for call_args in mock_write_record.call_args_list
+            if call_args[0][0] == 'campaign_performance'
+        ]
+        self.assertEqual(len(written_records), 2)
+        for record in written_records:
+            self.assertGreaterEqual(record['date'], '2024-06-01')
 
-    def streams_to_test(self):
-        """Return streams that respect start_date."""
-        return {"campaign_performance"}
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.request")
+    def test_different_start_dates_yield_different_record_counts(
+        self,
+        mock_request,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """A later start_date should yield fewer (or equal) records for
+        campaign_performance."""
+        mock_request.side_effect = self._mock_request()
 
-    def excluded_stream_reasons(self):
-        """Return documented reasons for streams excluded from this test."""
-        return {
-            "campaigns": "Full-table stream: does not filter by start_date via API.",
-        }
+        # First sync with early start_date
+        config_early = dict(self.default_config)
+        config_early['start_date'] = '2023-01-01T00:00:00Z'
 
-    def test_excluded_streams_are_documented(self):
-        """Verify each excluded stream has a documented reason."""
-        excluded = self.expected_stream_names().difference(self.streams_to_test())
-        self.assertSetEqual(excluded, set(self.excluded_stream_reasons().keys()))
+        taboola.sync_campaign_performance(
+            config_early, {}, 'mock-token', config_early['account_id'])
+        early_count = sum(
+            1 for c in mock_write_record.call_args_list
+            if c[0][0] == 'campaign_performance'
+        )
 
-    def test_replicated_records(self):
-        """Verify later start_date does not increase replicated records."""
-        for stream in self.streams_to_test():
-            with self.subTest(stream=stream):
-                count_1 = StartDateTest.record_count_by_stream_1.get(stream, 0)
-                count_2 = StartDateTest.record_count_by_stream_2.get(stream, 0)
-                self.assertGreaterEqual(count_1, count_2)
+        mock_write_record.reset_mock()
+        mock_write_state.reset_mock()
+
+        # Second sync with later start_date
+        config_late = dict(self.default_config)
+        config_late['start_date'] = '2025-01-01T00:00:00Z'
+
+        taboola.sync_campaign_performance(
+            config_late, {}, 'mock-token', config_late['account_id'])
+        late_count = sum(
+            1 for c in mock_write_record.call_args_list
+            if c[0][0] == 'campaign_performance'
+        )
+
+        self.assertGreater(early_count, late_count)
+        self.assertEqual(early_count, 3)  # all records
+        self.assertEqual(late_count, 1)   # only 2025-01-15
+
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.request")
+    def test_full_table_stream_ignores_start_date(
+        self,
+        mock_request,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """Campaigns is a full-table stream — start_date should not reduce
+        the number of records."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+
+        # Even with a very late start_date, campaigns returns all records
+        config['start_date'] = '2025-12-01T00:00:00Z'
+        taboola.sync_campaigns('mock-token', config['account_id'])
+
+        campaign_records = [
+            c for c in mock_write_record.call_args_list
+            if c[0][0] == 'campaigns'
+        ]
+        self.assertEqual(len(campaign_records), len(self.MOCK_CAMPAIGNS))

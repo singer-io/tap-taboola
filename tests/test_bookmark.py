@@ -1,46 +1,99 @@
-"""Integration tests for tap-taboola bookmarking."""
-from tap_tester.base_suite_tests.bookmark_test import BookmarkTest
+"""Integration test: bookmark is advanced after sync for incremental streams."""
+import unittest
+from unittest.mock import patch
 
-from base import TaboolaBaseTest  # pylint: disable=import-error
+import tap_taboola as taboola
+
+try:
+    from .base import TaboolaBaseTest
+except ImportError:
+    from base import TaboolaBaseTest
 
 
-class TaboolaBookmarkTest(BookmarkTest, TaboolaBaseTest):
-    """Verify bookmark behaviour for tap-taboola streams.
+class BookmarkIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
-    Both streams (campaigns, campaign_performance) are FULL_TABLE and carry
-    no replication key, so there are no incremental streams to bookmark-test.
-    All streams are documented as excluded.
-    """
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.request")
+    def test_sync_advances_bookmark_for_campaign_performance(
+        self,
+        mock_request,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """After syncing campaign_performance, the bookmark should advance
+        to the max date seen in the records."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+        state = {}
 
-    bookmark_format = "%Y-%m-%d"
-    initial_bookmarks = {}
+        taboola.sync_campaign_performance(
+            config, state, 'mock-token', config['account_id'])
 
-    @staticmethod
-    def name():
-        """Return unique test-run name."""
-        return "tap_tester_taboola_bookmark_test"
+        # write_state should have been called with the max date
+        mock_write_state.assert_called()
+        last_state = mock_write_state.call_args[0][0]
+        bookmark_date = last_state['bookmarks']['campaign_performance']['date']
 
-    def streams_to_test(self):
-        """Return incremental streams — campaign_performance uses 'date' as a replication key."""
-        return {s for s, m in self.expected_metadata().items()
-                if m[self.REPLICATION_METHOD] == self.INCREMENTAL}
+        # The max date in mock data is 2025-01-15
+        self.assertEqual(bookmark_date, '2025-01-15')
 
-    def excluded_stream_reasons(self):
-        """Document exclusion for full-table streams."""
-        return {s: "Full-table stream: bookmark state not applicable."
-                for s, m in self.expected_metadata().items()
-                if m[self.REPLICATION_METHOD] == self.FULL_TABLE}
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.request")
+    def test_sync_with_existing_bookmark_returns_fewer_records(
+        self,
+        mock_request,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """When a bookmark already exists, the API query filters by start_date
+        so fewer records should be returned."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
 
-    def test_excluded_streams_are_documented(self):
-        """Verify each excluded stream has a documented reason."""
-        excluded = self.expected_stream_names().difference(self.streams_to_test())
-        self.assertSetEqual(excluded, set(self.excluded_stream_reasons().keys()))
+        # First sync with no bookmark — should get all 3 records
+        state_1 = {}
+        taboola.sync_campaign_performance(
+            config, state_1, 'mock-token', config['account_id'])
+        count_1 = sum(
+            1 for c in mock_write_record.call_args_list
+            if c[0][0] == 'campaign_performance'
+        )
 
-    def calculate_new_bookmarks(self):
-        """Set bookmark to a date between the two mock records so sync 2 returns fewer rows.
+        mock_write_record.reset_mock()
 
-        Mock data has records on 2024-07-01 and 2025-01-01.  Setting the
-        bookmark to 2024-12-01 means sync 2 will only fetch the 2025-01-01
-        record (1), which is less than sync 1's full two records (2).
-        """
-        return {'campaign_performance': {'date': '2024-12-01'}}
+        # Second sync with bookmark at 2024-12-01 — only 2025-01-15 record passes
+        state_2 = {
+            'bookmarks': {
+                'campaign_performance': {'date': '2024-12-01'}
+            }
+        }
+        taboola.sync_campaign_performance(
+            config, state_2, 'mock-token', config['account_id'])
+        count_2 = sum(
+            1 for c in mock_write_record.call_args_list
+            if c[0][0] == 'campaign_performance'
+        )
+
+        self.assertEqual(count_1, 3)
+        self.assertEqual(count_2, 1)
+        self.assertGreater(count_1, count_2)
+
+    @patch("tap_taboola.singer.write_state")
+    @patch("tap_taboola.singer.write_record")
+    @patch("tap_taboola.request")
+    def test_full_table_stream_has_no_bookmark(
+        self,
+        mock_request,
+        mock_write_record,
+        mock_write_state,
+    ):
+        """Full table streams (campaigns) should not write bookmark state."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+
+        taboola.sync_campaigns('mock-token', config['account_id'])
+
+        # sync_campaigns does not call write_state
+        mock_write_state.assert_not_called()
