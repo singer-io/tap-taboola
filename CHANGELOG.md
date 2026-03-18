@@ -1,4 +1,7 @@
 # Changelog
+## 1.0.1
+  * Updated python version. [#26](https://github.com/singer-io/tap-taboola/pull/26)
+  * Added integration tests.
 
 ## 1.0.0
   * Add discovery support [#22](https://github.com/singer-io/tap-taboola/pull/22)
