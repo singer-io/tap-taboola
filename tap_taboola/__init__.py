@@ -21,105 +21,6 @@ LOGGER = singer.get_logger()
 
 BASE_URL = 'https://backstage.taboola.com'
 
-# ---------------------------------------------------------------------------
-# Mock mode – activated by setting TAP_TABOOLA_MOCK=1 in the environment.
-# When enabled every outbound HTTP call is replaced with in-process fixture
-# data so the tap can be exercised by tap-tester without real credentials.
-# ---------------------------------------------------------------------------
-_MOCK_MODE = os.environ.get('TAP_TABOOLA_MOCK', '').lower() in ('1', 'true', 'yes')
-
-_MOCK_CAMPAIGNS = [
-    {
-        'id': '1',
-        'advertiser_id': 'mock-advertiser',
-        'name': 'Mock Campaign',
-        'tracking_code': '',
-        'cpc': '0.50',
-        'daily_cap': '100.0',
-        'spending_limit': '1000.0',
-        'spending_limit_model': 'ENTIRE',
-        'country_targeting': None,
-        'platform_targeting': None,
-        'publisher_targeting': None,
-        'start_date': '2024-01-01',
-        'end_date': None,
-        'approval_state': 'APPROVED',
-        'is_active': True,
-        'spent': '50.0',
-        'status': 'RUNNING',
-    }
-]
-
-_MOCK_CAMPAIGN_PERFORMANCE = [
-    {
-        'campaign': '1',
-        'impressions': '8000',
-        'ctr': '0.03',
-        'cpc': '0.40',
-        'cpa_actions_num': '3',
-        'cpa': '0.8',
-        'cpm': '2.0',
-        'clicks': '300',
-        'currency': 'USD',
-        'cpa_conversion_rate': '0.01',
-        'spent': '120.0',
-        'date': '2024-07-01 00:00:00.000000',
-        'campaign_name': 'Mock Campaign',
-        'conversions_value': '240.0',
-    },
-    {
-        'campaign': '1',
-        'impressions': '10000',
-        'ctr': '0.05',
-        'cpc': '0.50',
-        'cpa_actions_num': '5',
-        'cpa': '1.0',
-        'cpm': '2.5',
-        'clicks': '500',
-        'currency': 'USD',
-        'cpa_conversion_rate': '0.01',
-        'spent': '250.0',
-        'date': '2025-01-01 00:00:00.000000',
-        'campaign_name': 'Mock Campaign',
-        'conversions_value': '500.0',
-    },
-]
-
-
-class _MockResponse:
-    """Minimal requests.Response stand-in used in mock mode."""
-
-    def __init__(self, payload):
-        self._payload = payload
-        self.status_code = 200
-
-    def raise_for_status(self):
-        pass
-
-    def json(self):
-        return self._payload
-
-
-def _mock_request(url, params=None):
-    """Return a _MockResponse whose payload depends on the requested URL."""
-    if 'token-details' in url:
-        return _MockResponse({'account_id': 'mock-account'})
-    if 'reports/campaign-summary' in url:
-        start_date = (params or {}).get('start_date', '')
-        if start_date:
-            # Normalise to YYYY-MM-DD for comparison with the record date stub.
-            start_date_str = str(start_date)[:10]
-            results = [
-                r for r in _MOCK_CAMPAIGN_PERFORMANCE
-                if r['date'][:10] >= start_date_str
-            ]
-        else:
-            results = _MOCK_CAMPAIGN_PERFORMANCE
-        return _MockResponse({'results': results})
-    if '/campaigns/' in url:
-        return _MockResponse({'results': _MOCK_CAMPAIGNS})
-    return _MockResponse({})
-
 
 def do_discover():
 
@@ -152,10 +53,6 @@ def is_selected(stream_catalog):
                       giveup=lambda e: e.response is not None and 400 <= e.response.status_code < 500, # pylint: disable=line-too-long
                       factor=2)
 def request(url, access_token, params={}):
-    if _MOCK_MODE:
-        LOGGER.info("[mock] GET %s", url)
-        return _mock_request(url, params)
-
     LOGGER.info("Making request: GET {} {}".format(url, params))
 
     try:
@@ -173,10 +70,6 @@ def request(url, access_token, params={}):
     return response
 
 def get_token_password_auth(client_id, client_secret, username, password):
-    if _MOCK_MODE:
-        LOGGER.info("[mock] password auth – returning mock token")
-        return {'token': 'mock-access-token'}
-
     url = '{}/backstage/oauth/token'.format(BASE_URL)
     params = {
         'client_id': client_id,
@@ -204,10 +97,6 @@ def get_token_password_auth(client_id, client_secret, username, password):
     return result
 
 def get_token_client_credentials_auth(client_id, client_secret):
-    if _MOCK_MODE:
-        LOGGER.info("[mock] client-credentials auth – returning mock token")
-        return {'token': 'mock-access-token'}
-
     url = '{}/backstage/oauth/token'.format(BASE_URL)
     params = {
         'client_id': client_id,
@@ -274,12 +163,8 @@ def fetch_campaign_performance(config, state, access_token, account_id):
     url = ('{}/backstage/api/1.0/{}/reports/campaign-summary/dimensions/campaign_day_breakdown' #pylint: disable=line-too-long
            .format(BASE_URL, account_id))
 
-    # Prefer the saved bookmark date; fall back to config start_date.
-    bookmark_date = state.get('bookmarks', {}).get('campaign_performance', {}).get('date')
-    start_date = bookmark_date or state.get('start_date', config.get('start_date'))
-
     params = {
-        'start_date': start_date,
+        'start_date': state.get('start_date', config.get('start_date')),
         'end_date': datetime.date.today(),
     }
 
@@ -287,8 +172,7 @@ def fetch_campaign_performance(config, state, access_token, account_id):
     return campaign_performance.json().get('results')
 
 
-def sync_campaign_performance(config, state, access_token, account_id,
-                              selected_fields=None):
+def sync_campaign_performance(config, state, access_token, account_id):
     performance = fetch_campaign_performance(config, state, access_token,
                                              account_id)
 
@@ -297,25 +181,12 @@ def sync_campaign_performance(config, state, access_token, account_id,
     LOGGER.info("Got {} campaign performance records."
                 .format(len(performance)))
 
-    max_date = state.get('start_date', config.get('start_date', ''))
     for record in performance:
         parsed_performance = parse_campaign_performance(record)
-
-        # Track max date before any field filtering so the bookmark is always updated.
-        record_date = parsed_performance.get('date', '')
-        if record_date and record_date > max_date:
-            max_date = record_date
-
-        if selected_fields is not None:
-            parsed_performance = {k: v for k, v in parsed_performance.items()
-                                  if k in selected_fields}
 
         singer.write_record('campaign_performance',
                             parsed_performance,
                             time_extracted=time_extracted)
-
-    if max_date:
-        singer.write_state({'bookmarks': {'campaign_performance': {'date': max_date}}})
 
     LOGGER.info("Done syncing campaign_performance.")
 
@@ -351,7 +222,7 @@ def fetch_campaigns(access_token, account_id):
     return response.json().get('results')
 
 
-def sync_campaigns(access_token, account_id, selected_fields=None):
+def sync_campaigns(access_token, account_id):
     campaigns = fetch_campaigns(access_token, account_id)
     time_extracted = utils.now()
 
@@ -359,9 +230,6 @@ def sync_campaigns(access_token, account_id, selected_fields=None):
 
     for record in campaigns:
         parsed_campaigns = parse_campaign(record)
-        if selected_fields is not None:
-            parsed_campaigns = {k: v for k, v in parsed_campaigns.items()
-                                if k in selected_fields}
 
         singer.write_record('campaigns',
                             parsed_campaigns,
@@ -439,97 +307,11 @@ def load_state(filename):
         raise RuntimeError
 
 
-def _build_catalog_entry(stream_name, schema, key_properties,
-                         valid_replication_keys=None,
-                         replication_method="FULL_TABLE"):
-    """Return a Singer catalog entry with inclusion metadata."""
-    metadata = [
-        {
-            "breadcrumb": [],
-            "metadata": {
-                "table-key-properties": key_properties,
-                "forced-replication-method": replication_method,
-                "valid-replication-keys": valid_replication_keys or [],
-            }
-        }
-    ]
-    for prop in schema.get("properties", {}).keys():
-        inclusion = "automatic" if prop in key_properties else "available"
-        metadata.append({
-            "breadcrumb": ["properties", prop],
-            "metadata": {"inclusion": inclusion}
-        })
-    return {
-        "stream": stream_name,
-        "tap_stream_id": stream_name,
-        "schema": schema,
-        "metadata": metadata,
-        "key_properties": key_properties,
-    }
-
-
-def do_discover():
-    """Write a Singer catalog to stdout and exit."""
-    catalog = {
-        "streams": [
-            _build_catalog_entry("campaigns", schemas.campaign, ["id"],
-                                 valid_replication_keys=[]),
-            _build_catalog_entry("campaign_performance",
-                                 schemas.campaign_performance,
-                                 ["campaign_id", "date"],
-                                 valid_replication_keys=["date"],
-                                 replication_method="INCREMENTAL"),
-        ]
-    }
-    json.dump(catalog, sys.stdout, indent=2)
-    sys.stdout.write("\n")
-    sys.stdout.flush()
-
-
-def _get_selected_fields(catalog, stream_name):
-    """Return the set of field names selected in the catalog for *stream_name*.
-
-    A field is included when its breadcrumb-level metadata has
-    ``selected: true`` OR its inclusion is ``automatic`` (primary keys are
-    always emitted regardless of explicit selection).  Returns ``None`` when
-    no catalog is provided so callers know to emit all fields.
-    """
-    if catalog is None:
-        return None
-    for entry in catalog.get('streams', []):
-        if entry.get('stream') != stream_name and \
-                entry.get('tap_stream_id') != stream_name:
-            continue
-        selected = set()
-        for meta in entry.get('metadata', []):
-            breadcrumb = meta.get('breadcrumb', [])
-            if len(breadcrumb) == 2 and breadcrumb[0] == 'properties':
-                field_meta = meta.get('metadata', {})
-                if field_meta.get('inclusion') == 'automatic' or \
-                        field_meta.get('selected') is True:
-                    selected.add(breadcrumb[1])
-        return selected or None
-    return None
-
-
-def _load_catalog(catalog_path):
-    """Load a catalog JSON file; return None if no path given."""
-    if not catalog_path:
-        return None
-    try:
-        with open(catalog_path) as f:
-            return json.load(f)
-    except Exception:  # pylint: disable=broad-except
-        LOGGER.warning("Could not load catalog from %s", catalog_path)
-        return None
-
-
 def do_sync(args):
     LOGGER.info("Starting sync.")
 
     config = load_config(args.config)
     state = load_state(args.state)
-    catalog = _load_catalog(getattr(args, 'catalog', None))
 
     # Load catalog
     try:
@@ -572,10 +354,6 @@ def main_impl():
     parser.add_argument('-d', '--discover', help='Discovery mode', action='store_true')
     parser.add_argument( "--catalog", help="catalog mode")
     args = parser.parse_args()
-
-    if args.discover:
-        do_discover()
-        return
 
     try:
 
