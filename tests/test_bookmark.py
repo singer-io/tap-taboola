@@ -1,4 +1,4 @@
-"""Integration test: bookmark is advanced after sync for incremental streams."""
+"""Integration test: campaign_performance records are written for incremental streams."""
 import unittest
 from unittest.mock import patch
 
@@ -10,19 +10,18 @@ except ImportError:
     from base import TaboolaBaseTest
 
 
-class BookmarkIntegrationTest(TaboolaBaseTest, unittest.TestCase):
+class CampaignPerformanceIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
     @patch("tap_taboola.singer.write_state")
     @patch("tap_taboola.singer.write_record")
     @patch("tap_taboola.request")
-    def test_sync_advances_bookmark_for_campaign_performance(
+    def test_sync_writes_campaign_performance_records(
         self,
         mock_request,
         mock_write_record,
         mock_write_state,
     ):
-        """After syncing campaign_performance, the bookmark should advance
-        to the max date seen in the records."""
+        """After syncing campaign_performance, records should be written."""
         mock_request.side_effect = self._mock_request()
         config = dict(self.default_config)
         state = {}
