@@ -195,7 +195,8 @@ class TaboolaBaseTest:
         if performance is None:
             performance = cls.MOCK_CAMPAIGN_PERFORMANCE
 
-        def mock_fn(url, access_token, params={}):
+        def mock_fn(url, access_token, params=None):
+            params = params or {}
             if 'token-details' in url:
                 return MockResponse({'account_id': account_id})
             if 'reports/campaign-summary' in url:
