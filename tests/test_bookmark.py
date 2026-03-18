@@ -37,6 +37,10 @@ class BookmarkIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         ]
         self.assertGreater(len(perf_records), 0)
 
+        # Verify bookmark/state was advanced and written
+        self.assertTrue(mock_write_state.called)
+        self.assertNotEqual(state, {})
+
     @patch("tap_taboola.singer.write_record")
     @patch("tap_taboola.request")
     def test_full_table_stream_has_no_bookmark(
