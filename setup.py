@@ -19,6 +19,7 @@ setup(name="tap-taboola",
         "dev": [
             "pylint",
             "ipdb",
+            "pytest",
         ]
         },
       entry_points="""
