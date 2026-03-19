@@ -15,30 +15,17 @@ class Stream:
     key_properties = None
     parent_stream = None
 
-    # To write schema in output
-    def write_schema(self, schema, stream_name, sync_streams, selected_streams):
-        """
-        To write schema in output
-        """
-        try:
-            # Write_schema for the stream if it is selected in catalog
-            if stream_name in selected_streams and stream_name in sync_streams:
-                singer.write_schema(stream_name, schema, self.key_properties)
-        except OSError as err:
-            LOGGER.error("OS Error writing schema for '{}': {}".format(stream_name, err))
-            raise err
-
 class Campaign(Stream):
-    name = "campaign"
+    name = "campaigns"
     key_properties = ["id"]
-    replication_keys = "created_at"
-    replication_method = "INCREMENTAL"
+    replication_keys = None
+    replication_method = "FULL_TABLE"
 
 
 class CampaignPerformance(Stream):
-    name = "Campaign Performance"
-    key_properties = ["id"]
-    replication_keys = "created_at"
+    name = "campaign_performance"
+    key_properties = ["campaign_id", "date"]
+    replication_keys = ["date"]
     replication_method = "INCREMENTAL"
 
 
