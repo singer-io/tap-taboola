@@ -52,17 +52,16 @@ def is_selected(stream_catalog):
                       max_tries=5,
                       giveup=lambda e: e.response is not None and 400 <= e.response.status_code < 500, # pylint: disable=line-too-long
                       factor=2)
-def request(url, access_token, params={}):
+def request(url, access_token, params=None):
+    if params is None:
+        params = {}
     LOGGER.info("Making request: GET {} {}".format(url, params))
 
-    try:
-        response = requests.get(
-            url,
-            headers={'Authorization': 'Bearer {}'.format(access_token),
-                     'Accept': 'application/json'},
-            params=params)
-    except Exception as exception:
-        LOGGER.exception(exception)
+    response = requests.get(
+        url,
+        headers={'Authorization': 'Bearer {}'.format(access_token),
+                 'Accept': 'application/json'},
+        params=params)
 
     LOGGER.info("Got response code: {}".format(response.status_code))
 
@@ -181,12 +180,21 @@ def sync_campaign_performance(config, state, access_token, account_id):
     LOGGER.info("Got {} campaign performance records."
                 .format(len(performance)))
 
+    max_date = None
     for record in performance:
         parsed_performance = parse_campaign_performance(record)
 
         singer.write_record('campaign_performance',
                             parsed_performance,
                             time_extracted=time_extracted)
+
+        record_date = parsed_performance.get('date')
+        if record_date and (max_date is None or record_date > max_date):
+            max_date = record_date
+
+    if max_date:
+        state['start_date'] = max_date
+        singer.write_state(state)
 
     LOGGER.info("Done syncing campaign_performance.")
 
@@ -245,8 +253,8 @@ def verify_account_access(access_token, account_id):
 
     token_account_id = result.json().get('account_id')
     if token_account_id != account_id:
-        LOGGER.warn(("The provided `account_id` ({}) doesn't match the "
-                     "`account_id` of the token issued ({})").format(account_id, token_account_id))
+        LOGGER.warning(("The provided `account_id` ({}) doesn't match the "
+                        "`account_id` of the token issued ({})").format(account_id, token_account_id))
         return token_account_id
 
     LOGGER.info("Verified account access via token details endpoint.")
@@ -286,7 +294,7 @@ def load_config(filename):
     try:
         with open(filename) as config_file:
             config = json.load(config_file)
-    except:
+    except Exception:
         LOGGER.fatal("Failed to decode config file. Is it valid json?")
         raise RuntimeError
 
@@ -302,7 +310,7 @@ def load_state(filename):
     try:
         with open(filename) as state_file:
             return json.load(state_file)
-    except:
+    except Exception:
         LOGGER.fatal("Failed to decode state file. Is it valid json?")
         raise RuntimeError
 
@@ -337,7 +345,7 @@ def do_sync(args):
         if not is_selected(entry):
             continue
 
-        for StreamClass in STREAMS:
+        for StreamClass in STREAMS.values():
             if StreamClass.matches_catalog(entry):
                 stream = StreamClass(config, state, entry)
                 stream.write_schema()
