@@ -12,17 +12,19 @@ except ImportError:
 
 # Fields emitted by parse_campaign()
 CAMPAIGN_FIELDS = {
-    'id', 'advertiser_id', 'name', 'tracking_code', 'cpc', 'daily_cap',
-    'spending_limit', 'spending_limit_model', 'country_targeting',
-    'platform_targeting', 'publisher_targeting', 'start_date', 'end_date',
-    'approval_state', 'is_active', 'spent', 'status',
+    'id', 'created_at', 'advertiser_id', 'name', 'tracking_code', 'cpc',
+    'daily_cap', 'spending_limit', 'spending_limit_model',
+    'country_targeting', 'platform_targeting', 'publisher_targeting',
+    'start_date', 'end_date', 'approval_state', 'is_active', 'spent',
+    'status',
 }
 
 # Fields emitted by parse_campaign_performance()
 PERFORMANCE_FIELDS = {
-    'campaign_id', 'impressions', 'ctr', 'cpc', 'cpa_actions_num', 'cpa',
-    'cpm', 'clicks', 'currency', 'cpa_conversion_rate', 'spent', 'date',
-    'campaign_name', 'conversions_value',
+    'id', 'created_at', 'campaign_id', 'impressions', 'ctr', 'cpc',
+    'cpa_actions_num', 'cpa', 'cpm', 'clicks', 'currency',
+    'cpa_conversion_rate', 'spent', 'date', 'campaign_name',
+    'conversions_value',
 }
 
 

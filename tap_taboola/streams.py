@@ -43,6 +43,7 @@ def parse_campaign(campaign):
 
     return {
         'id': int(campaign.get('id')),
+        'created_at': campaign.get('created_at'),
         'advertiser_id': str(campaign.get('advertiser_id', '')),
         'name': str(campaign.get('name', '')),
         'tracking_code': str(campaign.get('tracking_code', '')),
@@ -87,6 +88,8 @@ def sync_campaigns(access_token, account_id):
 
 def parse_campaign_performance(campaign_performance):
     return {
+        'id': campaign_performance.get('id'),
+        'created_at': campaign_performance.get('created_at'),
         'campaign_id': int(campaign_performance.get('campaign')),
         'impressions': int(campaign_performance.get('impressions', 0)),
         'ctr': float(campaign_performance.get('ctr', 0.0)),
