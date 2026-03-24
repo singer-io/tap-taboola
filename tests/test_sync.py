@@ -1,9 +1,11 @@
-"""Integration test: sync function writes records and updates state
-correctly."""
+"""Integration test: do_sync() end-to-end pipeline writes schemas,
+records, and state correctly."""
 import json
 import os
+import sys
 import tempfile
 import unittest
+from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -13,162 +15,6 @@ try:
     from .base import TaboolaBaseTest
 except ImportError:
     from base import TaboolaBaseTest
-
-
-class SyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
-
-    @patch("tap_taboola.streams.singer.write_state")
-    @patch("tap_taboola.streams.singer.write_record")
-    @patch("tap_taboola.streams.request")
-    def test_sync_empty_campaigns_no_crash(
-        self,
-        mock_request,
-        mock_write_record,
-        mock_write_state,
-    ):
-        """When API returns empty campaigns, sync should complete without
-        errors and not write any campaign records."""
-        mock_request.side_effect = self._mock_request(campaigns=[])
-        config = dict(self.default_config)
-
-        taboola.sync_campaigns('mock-token', config['account_id'])
-
-        campaign_records = [
-            c for c in mock_write_record.call_args_list
-            if c[0][0] == 'campaigns'
-        ]
-        self.assertEqual(len(campaign_records), 0)
-
-    @patch("tap_taboola.streams.singer.write_state")
-    @patch("tap_taboola.streams.singer.write_record")
-    @patch("tap_taboola.streams.request")
-    def test_sync_empty_performance_no_crash(
-        self,
-        mock_request,
-        mock_write_record,
-        mock_write_state,
-    ):
-        """When API returns empty performance data, sync should complete
-        without errors."""
-        mock_request.side_effect = self._mock_request(performance=[])
-        config = dict(self.default_config)
-
-        taboola.sync_campaign_performance(
-            config, {}, 'mock-token', config['account_id'])
-
-        perf_records = [
-            c for c in mock_write_record.call_args_list
-            if c[0][0] == 'campaign_performance'
-        ]
-        self.assertEqual(len(perf_records), 0)
-
-    @patch("tap_taboola.streams.singer.write_state")
-    @patch("tap_taboola.streams.singer.write_record")
-    @patch("tap_taboola.streams.request")
-    def test_write_record_called_for_each_campaign(
-        self,
-        mock_request,
-        mock_write_record,
-        mock_write_state,
-    ):
-        """Verify write_record is called once per campaign in the response."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
-
-        taboola.sync_campaigns('mock-token', config['account_id'])
-
-        campaign_records = [
-            c for c in mock_write_record.call_args_list
-            if c[0][0] == 'campaigns'
-        ]
-        self.assertEqual(len(campaign_records), len(self.MOCK_CAMPAIGNS))
-
-    @patch("tap_taboola.streams.singer.write_state")
-    @patch("tap_taboola.streams.singer.write_record")
-    @patch("tap_taboola.streams.request")
-    def test_write_record_called_for_each_performance_row(
-        self,
-        mock_request,
-        mock_write_record,
-        mock_write_state,
-    ):
-        """Verify write_record is called once per performance row."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
-
-        taboola.sync_campaign_performance(
-            config, {}, 'mock-token', config['account_id'])
-
-        perf_records = [
-            c for c in mock_write_record.call_args_list
-            if c[0][0] == 'campaign_performance'
-        ]
-        self.assertEqual(len(perf_records), len(self.MOCK_CAMPAIGN_PERFORMANCE))
-
-    @patch("tap_taboola.streams.singer.write_state")
-    @patch("tap_taboola.streams.singer.write_record")
-    @patch("tap_taboola.streams.request")
-    def test_campaign_parse_types(
-        self,
-        mock_request,
-        mock_write_record,
-        mock_write_state,
-    ):
-        """Verify campaign fields are correctly typed after parsing."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
-
-        taboola.sync_campaigns('mock-token', config['account_id'])
-
-        record = mock_write_record.call_args_list[0][0][1]
-        self.assertIsInstance(record['id'], int)
-        self.assertIsInstance(record['cpc'], float)
-        self.assertIsInstance(record['is_active'], bool)
-        self.assertIsInstance(record['name'], str)
-
-    @patch("tap_taboola.streams.singer.write_state")
-    @patch("tap_taboola.streams.singer.write_record")
-    @patch("tap_taboola.streams.request")
-    def test_performance_parse_types(
-        self,
-        mock_request,
-        mock_write_record,
-        mock_write_state,
-    ):
-        """Verify campaign_performance fields are correctly typed after parsing."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
-
-        taboola.sync_campaign_performance(
-            config, {}, 'mock-token', config['account_id'])
-
-        record = mock_write_record.call_args_list[0][0][1]
-        self.assertIsInstance(record['campaign_id'], int)
-        self.assertIsInstance(record['impressions'], int)
-        self.assertIsInstance(record['ctr'], float)
-        self.assertIsInstance(record['clicks'], int)
-        self.assertIsInstance(record['date'], str)
-        # Date should be YYYY-MM-DD format
-        self.assertRegex(record['date'], r'^\d{4}-\d{2}-\d{2}$')
-
-    @patch("tap_taboola.streams.singer.write_state")
-    @patch("tap_taboola.streams.singer.write_record")
-    @patch("tap_taboola.streams.request")
-    def test_campaign_null_end_date_uses_sentinel(
-        self,
-        mock_request,
-        mock_write_record,
-        mock_write_state,
-    ):
-        """Campaigns with None end_date should use '9999-12-31' sentinel."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
-
-        taboola.sync_campaigns('mock-token', config['account_id'])
-
-        # First campaign has end_date=None
-        record = mock_write_record.call_args_list[0][0][1]
-        self.assertEqual(record['end_date'], '9999-12-31')
 
 
 class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
@@ -627,5 +473,194 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         ]
         # First mock campaign has end_date=None
         self.assertEqual(campaign_records[0]['end_date'], '9999-12-31')
+
+
+class MainImplIntegrationTest(TaboolaBaseTest, unittest.TestCase):
+    """Test the CLI entry point main_impl() with real argument parsing."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+        self.config_path = os.path.join(self.tmpdir, 'config.json')
+        with open(self.config_path, 'w') as f:
+            json.dump(self.default_config, f)
+
+        self.state_path = os.path.join(self.tmpdir, 'state.json')
+        with open(self.state_path, 'w') as f:
+            json.dump({}, f)
+
+        self.catalog_all = self._make_selected_catalog()
+        self.catalog_path = os.path.join(self.tmpdir, 'catalog.json')
+        with open(self.catalog_path, 'w') as f:
+            json.dump(self.catalog_all, f)
+
+    # ------------------------------------------------------------------
+    # Discovery via CLI args
+    # ------------------------------------------------------------------
+
+    @patch("tap_taboola.do_discover")
+    def test_main_impl_discover_mode(self, mock_discover):
+        """main_impl() with --config and --discover calls do_discover()."""
+        with patch('sys.argv', ['tap-taboola',
+                                '--config', self.config_path,
+                                '--discover']):
+            taboola.main_impl()
+        mock_discover.assert_called_once()
+
+    # ------------------------------------------------------------------
+    # Sync via CLI args: --config + --catalog + --state
+    # ------------------------------------------------------------------
+
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.singer.write_schema")
+    @patch("tap_taboola.streams.request")
+    @patch("tap_taboola.request")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
+    def test_main_impl_sync_with_all_args(
+        self, mock_gen_token, mock_init_request, mock_stream_request,
+        mock_write_schema, mock_write_record, mock_write_state,
+    ):
+        """main_impl() with --config, --state, --catalog runs full sync."""
+        mock_init_request.side_effect = self._mock_request()
+        mock_stream_request.side_effect = self._mock_request()
+
+        with patch('sys.argv', ['tap-taboola',
+                                '--config', self.config_path,
+                                '--state', self.state_path,
+                                '--catalog', self.catalog_path]):
+            taboola.main_impl()
+
+        mock_gen_token.assert_called_once()
+
+        schema_streams = {c[0][0] for c in mock_write_schema.call_args_list}
+        self.assertIn('campaigns', schema_streams)
+        self.assertIn('campaign_performance', schema_streams)
+
+        record_streams = {c[0][0] for c in mock_write_record.call_args_list}
+        self.assertIn('campaigns', record_streams)
+        self.assertIn('campaign_performance', record_streams)
+
+    # ------------------------------------------------------------------
+    # Sync via CLI args: --config + --catalog (no --state)
+    # ------------------------------------------------------------------
+
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.singer.write_schema")
+    @patch("tap_taboola.streams.request")
+    @patch("tap_taboola.request")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
+    def test_main_impl_sync_without_state_arg(
+        self, mock_gen_token, mock_init_request, mock_stream_request,
+        mock_write_schema, mock_write_record, mock_write_state,
+    ):
+        """main_impl() with --config and --catalog but no --state still syncs."""
+        mock_init_request.side_effect = self._mock_request()
+        mock_stream_request.side_effect = self._mock_request()
+
+        with patch('sys.argv', ['tap-taboola',
+                                '--config', self.config_path,
+                                '--catalog', self.catalog_path]):
+            taboola.main_impl()
+
+        record_streams = {c[0][0] for c in mock_write_record.call_args_list}
+        self.assertIn('campaigns', record_streams)
+        self.assertIn('campaign_performance', record_streams)
+
+    # ------------------------------------------------------------------
+    # Sync via CLI short args: -c, -s
+    # ------------------------------------------------------------------
+
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.singer.write_schema")
+    @patch("tap_taboola.streams.request")
+    @patch("tap_taboola.request")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
+    def test_main_impl_sync_with_short_args(
+        self, mock_gen_token, mock_init_request, mock_stream_request,
+        mock_write_schema, mock_write_record, mock_write_state,
+    ):
+        """main_impl() with -c, -s short flags and --catalog runs full sync."""
+        mock_init_request.side_effect = self._mock_request()
+        mock_stream_request.side_effect = self._mock_request()
+
+        with patch('sys.argv', ['tap-taboola',
+                                '-c', self.config_path,
+                                '-s', self.state_path,
+                                '--catalog', self.catalog_path]):
+            taboola.main_impl()
+
+        record_streams = {c[0][0] for c in mock_write_record.call_args_list}
+        self.assertIn('campaigns', record_streams)
+        self.assertIn('campaign_performance', record_streams)
+
+    # ------------------------------------------------------------------
+    # Discovery via CLI short args: -c -d
+    # ------------------------------------------------------------------
+
+    @patch("tap_taboola.do_discover")
+    def test_main_impl_discover_with_short_args(self, mock_discover):
+        """main_impl() with -c and -d calls do_discover()."""
+        with patch('sys.argv', ['tap-taboola',
+                                '-c', self.config_path,
+                                '-d']):
+            taboola.main_impl()
+        mock_discover.assert_called_once()
+
+    # ------------------------------------------------------------------
+    # main() wraps main_impl() and re-raises exceptions
+    # ------------------------------------------------------------------
+
+    @patch("tap_taboola.do_discover")
+    def test_main_calls_discover(self, mock_discover):
+        """main() with --discover calls do_discover() via main_impl()."""
+        with patch('sys.argv', ['tap-taboola',
+                                '--config', self.config_path,
+                                '--discover']):
+            taboola.main()
+        mock_discover.assert_called_once()
+
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.singer.write_schema")
+    @patch("tap_taboola.streams.request")
+    @patch("tap_taboola.request")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
+    def test_main_calls_sync(
+        self, mock_gen_token, mock_init_request, mock_stream_request,
+        mock_write_schema, mock_write_record, mock_write_state,
+    ):
+        """main() with --config, --state, --catalog runs full sync."""
+        mock_init_request.side_effect = self._mock_request()
+        mock_stream_request.side_effect = self._mock_request()
+
+        with patch('sys.argv', ['tap-taboola',
+                                '--config', self.config_path,
+                                '--state', self.state_path,
+                                '--catalog', self.catalog_path]):
+            taboola.main()
+
+        record_streams = {c[0][0] for c in mock_write_record.call_args_list}
+        self.assertIn('campaigns', record_streams)
+        self.assertIn('campaign_performance', record_streams)
+
+    # ------------------------------------------------------------------
+    # No --catalog and no --discover does nothing
+    # ------------------------------------------------------------------
+
+    @patch("tap_taboola.do_discover")
+    @patch("tap_taboola.do_sync")
+    def test_main_impl_no_catalog_no_discover_does_nothing(
+        self, mock_do_sync, mock_discover,
+    ):
+        """main_impl() with only --config (no --catalog, no --discover)
+        calls neither do_discover nor do_sync."""
+        with patch('sys.argv', ['tap-taboola',
+                                '--config', self.config_path]):
+            taboola.main_impl()
+        mock_discover.assert_not_called()
+        mock_do_sync.assert_not_called()
 
 
