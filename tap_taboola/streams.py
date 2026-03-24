@@ -67,7 +67,7 @@ def fetch_campaigns(access_token, account_id):
     url = '{}/backstage/api/1.0/{}/campaigns/'.format(BASE_URL, account_id)
 
     response = request(url, access_token)
-    return response.json().get('results')
+    return response.json().get('results', [])
 
 
 def sync_campaigns(access_token, account_id):
@@ -121,7 +121,7 @@ def fetch_campaign_performance(config, state, access_token, account_id):
     }
 
     campaign_performance = request(url, access_token, params)
-    return campaign_performance.json().get('results')
+    return campaign_performance.json().get('results', [])
 
 
 def sync_campaign_performance(config, state, access_token, account_id):
