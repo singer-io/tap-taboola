@@ -155,7 +155,7 @@ def sync_campaign_performance(config, state, access_token, account_id):
 class Campaign(Stream):
     name = "campaigns"
     key_properties = ["id"]
-    replication_keys = "created_at"
+    replication_keys = ["created_at"]
     replication_method = "INCREMENTAL"
 
     def sync(self, access_token):
@@ -165,7 +165,7 @@ class Campaign(Stream):
 class CampaignPerformance(Stream):
     name = "campaign_performance"
     key_properties = ["id"]
-    replication_keys = "created_at"
+    replication_keys = ["created_at"]
     replication_method = "INCREMENTAL"
 
     def sync(self, access_token):
