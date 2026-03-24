@@ -13,9 +13,9 @@ except ImportError:
 
 class StartDateIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
-    @patch("tap_taboola.singer.write_state")
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_start_date_filters_campaign_performance(
         self,
         mock_request,
@@ -43,9 +43,9 @@ class StartDateIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         for record in written_records:
             self.assertGreaterEqual(record['date'], '2024-06-01')
 
-    @patch("tap_taboola.singer.write_state")
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_different_start_dates_yield_different_record_counts(
         self,
         mock_request,
@@ -85,9 +85,9 @@ class StartDateIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         self.assertEqual(early_count, 3)  # all records
         self.assertEqual(late_count, 1)   # only 2025-01-15
 
-    @patch("tap_taboola.singer.write_state")
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_full_table_stream_ignores_start_date(
         self,
         mock_request,

@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 
-from decimal import Decimal
-
 import argparse
-import datetime
 import json
 import sys
 import singer
-from singer import utils
 from singer import metadata
 import requests
 
-import backoff
-
-import tap_taboola.schema as schemas
-from tap_taboola.streams import STREAMS
+from tap_taboola.client import request, BASE_URL
+from tap_taboola.streams import (
+    STREAMS,
+    parse_campaign,
+    parse_campaign_performance,
+    fetch_campaigns,
+    fetch_campaign_performance,
+    sync_campaigns,
+    sync_campaign_performance,
+)
 from tap_taboola.discover import discover
 
 LOGGER = singer.get_logger()
-
-BASE_URL = 'https://backstage.taboola.com'
 
 
 def do_discover():
@@ -46,27 +46,6 @@ def is_selected(stream_catalog):
 
     return inclusion == "automatic"
 
-
-@backoff.on_exception(backoff.expo,
-                      (requests.exceptions.RequestException),
-                      max_tries=5,
-                      giveup=lambda e: e.response is not None and 400 <= e.response.status_code < 500, # pylint: disable=line-too-long
-                      factor=2)
-def request(url, access_token, params=None):
-    if params is None:
-        params = {}
-    LOGGER.info("Making request: GET {} {}".format(url, params))
-
-    response = requests.get(
-        url,
-        headers={'Authorization': 'Bearer {}'.format(access_token),
-                 'Accept': 'application/json'},
-        params=params)
-
-    LOGGER.info("Got response code: {}".format(response.status_code))
-
-    response.raise_for_status()
-    return response
 
 def get_token_password_auth(client_id, client_secret, username, password):
     url = '{}/backstage/oauth/token'.format(BASE_URL)
@@ -135,115 +114,6 @@ def generate_token(client_id, client_secret, username, password):
                                 token_result.get('error_description')))
 
     return token
-
-def parse_campaign_performance(campaign_performance):
-    return {
-        'campaign_id': int(campaign_performance.get('campaign')),
-        'impressions': int(campaign_performance.get('impressions', 0)),
-        'ctr': float(campaign_performance.get('ctr', 0.0)),
-        'cpc': float(campaign_performance.get('cpc', 0.0)),
-        'cpa_actions_num': int(campaign_performance.get('cpa_actions_num', 0)),
-        'cpa': float(campaign_performance.get('cpa', 0.0)),
-        'cpm': float(campaign_performance.get('cpm', 0.0)),
-        'clicks': int(campaign_performance.get('clicks', 0)),
-        'currency': str(campaign_performance.get('currency', '')),
-        'cpa_conversion_rate': float(campaign_performance.get(
-            'cpa_conversion_rate', 0.0)),
-        'spent': float(campaign_performance.get('spent', 0.0)),
-        'date': str(datetime.datetime.strptime(
-            campaign_performance.get('date'),
-            '%Y-%m-%d %H:%M:%S.%f'
-        ).date()),
-        'campaign_name': str(campaign_performance.get('campaign_name', '')),
-        'conversions_value': float(campaign_performance.get('conversions_value', 0.0)),
-    }
-
-def fetch_campaign_performance(config, state, access_token, account_id):
-    url = ('{}/backstage/api/1.0/{}/reports/campaign-summary/dimensions/campaign_day_breakdown' #pylint: disable=line-too-long
-           .format(BASE_URL, account_id))
-
-    params = {
-        'start_date': state.get('start_date', config.get('start_date')),
-        'end_date': datetime.date.today(),
-    }
-
-    campaign_performance = request(url, access_token, params)
-    return campaign_performance.json().get('results')
-
-
-def sync_campaign_performance(config, state, access_token, account_id):
-    performance = fetch_campaign_performance(config, state, access_token,
-                                             account_id)
-
-    time_extracted = utils.now()
-
-    LOGGER.info("Got {} campaign performance records."
-                .format(len(performance)))
-
-    max_date = None
-    for record in performance:
-        parsed_performance = parse_campaign_performance(record)
-
-        singer.write_record('campaign_performance',
-                            parsed_performance,
-                            time_extracted=time_extracted)
-
-        record_date = parsed_performance.get('date')
-        if record_date and (max_date is None or record_date > max_date):
-            max_date = record_date
-
-    if max_date:
-        state['start_date'] = max_date
-        singer.write_state(state)
-
-    LOGGER.info("Done syncing campaign_performance.")
-
-
-def parse_campaign(campaign):
-    start_date = campaign.get('start_date')
-    end_date = campaign.get('end_date')
-
-    return {
-        'id': int(campaign.get('id')),
-        'advertiser_id': str(campaign.get('advertiser_id', '')),
-        'name': str(campaign.get('name', '')),
-        'tracking_code': str(campaign.get('tracking_code', '')),
-        'cpc': float(campaign.get('cpc', 0.0)),
-        'daily_cap': float(campaign.get('daily_cap', 0.0)),
-        'spending_limit': float(campaign.get('spending_limit', 0.0)),
-        'spending_limit_model': str(campaign.get('spending_limit_model', '')),
-        'country_targeting': campaign.get('country_targeting'),
-        'platform_targeting': campaign.get('platform_targeting'),
-        'publisher_targeting': campaign.get('publisher_targeting'),
-        'start_date': str('9999-12-31' if start_date is None else start_date),
-        'end_date': str('9999-12-31' if end_date is None else end_date),
-        'approval_state': str(campaign.get('approval_state', '')),
-        'is_active': bool(campaign.get('is_active', False)),
-        'spent': float(campaign.get('spent', 0.0)),
-        'status': str(campaign.get('status', '')),
-    }
-
-def fetch_campaigns(access_token, account_id):
-    url = '{}/backstage/api/1.0/{}/campaigns/'.format(BASE_URL, account_id)
-
-    response = request(url, access_token)
-    return response.json().get('results')
-
-
-def sync_campaigns(access_token, account_id):
-    campaigns = fetch_campaigns(access_token, account_id)
-    time_extracted = utils.now()
-
-    LOGGER.info('Synced {} campaigns.'.format(len(campaigns)))
-
-    for record in campaigns:
-        parsed_campaigns = parse_campaign(record)
-
-        singer.write_record('campaigns',
-                            parsed_campaigns,
-                            time_extracted=time_extracted)
-
-    LOGGER.info("Done syncing campaigns.")
 
 
 def verify_account_access(access_token, account_id):

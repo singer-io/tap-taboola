@@ -28,8 +28,8 @@ PERFORMANCE_FIELDS = {
 
 class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_sync_all_streams_writes_records(
         self,
         mock_request,
@@ -52,8 +52,8 @@ class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         self.assertIn('campaigns', written_streams)
         self.assertIn('campaign_performance', written_streams)
 
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_sync_campaigns_only(
         self,
         mock_request,
@@ -71,8 +71,8 @@ class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         self.assertIn('campaigns', written_streams)
         self.assertNotIn('campaign_performance', written_streams)
 
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_all_campaign_fields_replicated(
         self,
         mock_request,
@@ -89,8 +89,8 @@ class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
                 record = call_args[0][1]
                 self.assertEqual(set(record.keys()), CAMPAIGN_FIELDS)
 
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_all_performance_fields_replicated(
         self,
         mock_request,

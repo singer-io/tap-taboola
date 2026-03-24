@@ -12,9 +12,9 @@ except ImportError:
 
 class CampaignPerformanceIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
-    @patch("tap_taboola.singer.write_state")
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_sync_writes_campaign_performance_records(
         self,
         mock_request,
@@ -36,8 +36,8 @@ class CampaignPerformanceIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         ]
         self.assertGreater(len(perf_records), 0)
 
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_full_table_stream_has_no_bookmark(
         self,
         mock_request,

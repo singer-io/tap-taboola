@@ -416,7 +416,7 @@ class TestRequest(unittest.TestCase):
         mock_resp.raise_for_status = MagicMock()
         return mock_resp
 
-    @patch('tap_taboola.requests.get')
+    @patch('tap_taboola.client.requests.get')
     def test_successful_request_returns_response(self, mock_get):
         mock_resp = self._make_response(200)
         mock_get.return_value = mock_resp
@@ -424,7 +424,7 @@ class TestRequest(unittest.TestCase):
         self.assertEqual(result, mock_resp)
         mock_resp.raise_for_status.assert_called_once()
 
-    @patch('tap_taboola.requests.get')
+    @patch('tap_taboola.client.requests.get')
     def test_passes_bearer_token_in_header(self, mock_get):
         mock_get.return_value = self._make_response()
         request('http://example.com', 'mytoken')
@@ -432,7 +432,7 @@ class TestRequest(unittest.TestCase):
         self.assertIn('Authorization', kwargs['headers'])
         self.assertEqual(kwargs['headers']['Authorization'], 'Bearer mytoken')
 
-    @patch('tap_taboola.requests.get')
+    @patch('tap_taboola.client.requests.get')
     def test_passes_params(self, mock_get):
         mock_get.return_value = self._make_response()
         params = {'start_date': '2024-01-01'}
@@ -440,7 +440,7 @@ class TestRequest(unittest.TestCase):
         _, kwargs = mock_get.call_args
         self.assertEqual(kwargs['params'], params)
 
-    @patch('tap_taboola.requests.get')
+    @patch('tap_taboola.client.requests.get')
     def test_raises_for_status_on_error(self, mock_get):
         mock_resp = self._make_response(404)
         mock_resp.raise_for_status.side_effect = requests.exceptions.HTTPError('404')

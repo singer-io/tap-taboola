@@ -14,9 +14,9 @@ except ImportError:
 
 class PaginationIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
-    @patch("tap_taboola.singer.write_state")
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_all_campaigns_returned_in_single_response(
         self,
         mock_request,
@@ -36,9 +36,9 @@ class PaginationIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         ]
         self.assertEqual(len(campaign_records), len(self.MOCK_CAMPAIGNS))
 
-    @patch("tap_taboola.singer.write_state")
-    @patch("tap_taboola.singer.write_record")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
     def test_all_performance_rows_returned_in_single_response(
         self,
         mock_request,
