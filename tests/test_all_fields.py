@@ -1,6 +1,10 @@
 """Integration test: sync all streams with mocked API responses
 and verify all fields are replicated."""
+import json
+import os
+import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import tap_taboola as taboola
@@ -30,22 +34,42 @@ PERFORMANCE_FIELDS = {
 
 class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.config_path = os.path.join(self.tmpdir, 'config.json')
+        with open(self.config_path, 'w') as f:
+            json.dump(self.default_config, f)
+        self.state_path = os.path.join(self.tmpdir, 'state.json')
+        with open(self.state_path, 'w') as f:
+            json.dump({}, f)
+        self.catalog_path = os.path.join(self.tmpdir, 'catalog.json')
+        with open(self.catalog_path, 'w') as f:
+            json.dump(self._make_selected_catalog(), f)
+
+    def _make_args(self, config=None, state=None, catalog=None):
+        return SimpleNamespace(
+            config=config or self.config_path,
+            state=state or self.state_path,
+            catalog=catalog or self.catalog_path,
+        )
+
+    @patch("tap_taboola.streams.singer.write_state")
     @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
+    @patch("tap_taboola.request")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_sync_all_streams_writes_records(
         self,
-        mock_request,
-        mock_write_record,
+        mock_gen_token, mock_init_request, mock_stream_request,
+        mock_write_schema, mock_write_record, mock_write_state,
     ):
-        """Sync both streams with mocked API data and verify
+        """Sync both streams via do_sync and verify
         records are written for each stream."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
-        state = {}
+        mock_init_request.side_effect = self._mock_request()
+        mock_stream_request.side_effect = self._mock_request()
 
-        taboola.sync_campaigns('mock-token', config['account_id'])
-        taboola.sync_campaign_performance(
-            config, state, 'mock-token', config['account_id'])
+        taboola.do_sync(self._make_args())
 
         written_streams = {
             call_args[0][0] for call_args in mock_write_record.call_args_list
@@ -54,18 +78,27 @@ class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         self.assertIn('campaigns', written_streams)
         self.assertIn('campaign_performance', written_streams)
 
+    @patch("tap_taboola.streams.singer.write_state")
     @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
+    @patch("tap_taboola.request")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_sync_campaigns_only(
         self,
-        mock_request,
-        mock_write_record,
+        mock_gen_token, mock_init_request, mock_stream_request,
+        mock_write_schema, mock_write_record, mock_write_state,
     ):
-        """Sync only campaigns and verify only campaign records are written."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
+        """Sync only campaigns via do_sync and verify only campaign records are written."""
+        catalog_campaigns = self._make_selected_catalog(stream_names=['campaigns'])
+        catalog_path = os.path.join(self.tmpdir, 'catalog_campaigns.json')
+        with open(catalog_path, 'w') as f:
+            json.dump(catalog_campaigns, f)
 
-        taboola.sync_campaigns('mock-token', config['account_id'])
+        mock_init_request.side_effect = self._mock_request()
+        mock_stream_request.side_effect = self._mock_request()
+
+        taboola.do_sync(self._make_args(catalog=catalog_path))
 
         written_streams = {
             call_args[0][0] for call_args in mock_write_record.call_args_list
@@ -73,37 +106,44 @@ class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
         self.assertIn('campaigns', written_streams)
         self.assertNotIn('campaign_performance', written_streams)
 
+    @patch("tap_taboola.streams.singer.write_state")
     @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
+    @patch("tap_taboola.request")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_all_campaign_fields_replicated(
         self,
-        mock_request,
-        mock_write_record,
+        mock_gen_token, mock_init_request, mock_stream_request,
+        mock_write_schema, mock_write_record, mock_write_state,
     ):
         """Verify all expected fields are present in written campaign records."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
+        mock_init_request.side_effect = self._mock_request()
+        mock_stream_request.side_effect = self._mock_request()
 
-        taboola.sync_campaigns('mock-token', config['account_id'])
+        taboola.do_sync(self._make_args())
 
         for call_args in mock_write_record.call_args_list:
             if call_args[0][0] == 'campaigns':
                 record = call_args[0][1]
                 self.assertEqual(set(record.keys()), CAMPAIGN_FIELDS)
 
+    @patch("tap_taboola.streams.singer.write_state")
     @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
+    @patch("tap_taboola.request")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_all_performance_fields_replicated(
         self,
-        mock_request,
-        mock_write_record,
+        mock_gen_token, mock_init_request, mock_stream_request,
+        mock_write_schema, mock_write_record, mock_write_state,
     ):
         """Verify all expected fields are present in written performance records."""
-        mock_request.side_effect = self._mock_request()
-        config = dict(self.default_config)
+        mock_init_request.side_effect = self._mock_request()
+        mock_stream_request.side_effect = self._mock_request()
 
-        taboola.sync_campaign_performance(
-            config, {}, 'mock-token', config['account_id'])
+        taboola.do_sync(self._make_args())
 
         for call_args in mock_write_record.call_args_list:
             if call_args[0][0] == 'campaign_performance':

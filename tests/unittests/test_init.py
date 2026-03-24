@@ -545,6 +545,37 @@ class TestSyncCampaigns(TaboolaBaseTest, unittest.TestCase):
         record = mock_write_record.call_args_list[0][0][1]
         self.assertEqual(record['end_date'], '9999-12-31')
 
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
+    def test_all_campaign_fields_present(
+        self, mock_request, mock_write_record, mock_write_state,
+    ):
+        """All expected fields are present in campaign records."""
+        expected_fields = {
+            'id', 'created_at', 'advertiser_id', 'name', 'tracking_code', 'cpc',
+            'daily_cap', 'spending_limit', 'spending_limit_model',
+            'country_targeting', 'platform_targeting', 'publisher_targeting',
+            'start_date', 'end_date', 'approval_state', 'is_active', 'spent',
+            'status',
+        }
+        mock_request.side_effect = self._mock_request()
+        sync_campaigns('mock-token', self.default_config['account_id'])
+        for call_args in mock_write_record.call_args_list:
+            if call_args[0][0] == 'campaigns':
+                self.assertEqual(set(call_args[0][1].keys()), expected_fields)
+
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
+    def test_campaigns_does_not_write_state(
+        self, mock_request, mock_write_record, mock_write_state,
+    ):
+        """sync_campaigns should not write bookmark state (full table stream)."""
+        mock_request.side_effect = self._mock_request()
+        sync_campaigns('mock-token', self.default_config['account_id'])
+        mock_write_state.assert_not_called()
+
 
 class TestSyncCampaignPerformance(TaboolaBaseTest, unittest.TestCase):
 
@@ -597,6 +628,62 @@ class TestSyncCampaignPerformance(TaboolaBaseTest, unittest.TestCase):
         self.assertIsInstance(record['clicks'], int)
         self.assertIsInstance(record['date'], str)
         self.assertRegex(record['date'], r'^\d{4}-\d{2}-\d{2}$')
+
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
+    def test_all_performance_fields_present(
+        self, mock_request, mock_write_record, mock_write_state,
+    ):
+        """All expected fields are present in campaign_performance records."""
+        expected_fields = {
+            'id', 'created_at', 'campaign_id', 'impressions', 'ctr', 'cpc',
+            'cpa_actions_num', 'cpa', 'cpm', 'clicks', 'currency',
+            'cpa_conversion_rate', 'spent', 'date', 'campaign_name',
+            'conversions_value',
+        }
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+        sync_campaign_performance(config, {}, 'mock-token', config['account_id'])
+        for call_args in mock_write_record.call_args_list:
+            if call_args[0][0] == 'campaign_performance':
+                self.assertTrue(expected_fields.issubset(set(call_args[0][1].keys())))
+
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
+    def test_start_date_filters_records(
+        self, mock_request, mock_write_record, mock_write_state,
+    ):
+        """Records before start_date are filtered out."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+        config['start_date'] = '2024-06-01T00:00:00Z'
+        sync_campaign_performance(config, {}, 'mock-token', config['account_id'])
+        written_records = [
+            c[0][1] for c in mock_write_record.call_args_list
+            if c[0][0] == 'campaign_performance'
+        ]
+        self.assertEqual(len(written_records), 2)
+        for record in written_records:
+            self.assertGreaterEqual(record['date'], '2024-06-01')
+
+    @patch("tap_taboola.streams.singer.write_state")
+    @patch("tap_taboola.streams.singer.write_record")
+    @patch("tap_taboola.streams.request")
+    def test_later_start_date_yields_fewer_records(
+        self, mock_request, mock_write_record, mock_write_state,
+    ):
+        """A later start_date should yield fewer records."""
+        mock_request.side_effect = self._mock_request()
+        config = dict(self.default_config)
+        config['start_date'] = '2025-01-01T00:00:00Z'
+        sync_campaign_performance(config, {}, 'mock-token', config['account_id'])
+        perf_records = [
+            c for c in mock_write_record.call_args_list
+            if c[0][0] == 'campaign_performance'
+        ]
+        self.assertEqual(len(perf_records), 1)
 
 
 if __name__ == '__main__':
