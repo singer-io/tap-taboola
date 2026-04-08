@@ -10,9 +10,9 @@ setup(name="tap-taboola",
       classifiers=["Programming Language :: Python :: 3 :: Only"],
       py_modules=["tap_taboola"],
       install_requires=[
-          "singer-python==6.1.1",
+          "singer-python==6.8.0",
           "backoff==2.2.1",
-          "requests==2.32.4",
+          "requests==2.32.5",
           "python-dateutil==2.9.0"
       ],
       extras_require={

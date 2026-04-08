@@ -142,14 +142,14 @@ class TaboolaBaseTest:
         return {
             "campaigns": {
                 cls.PRIMARY_KEYS: {"id"},
-                cls.REPLICATION_METHOD: "INCREMENTAL",
-                cls.REPLICATION_KEYS: {"created_at"},
+                cls.REPLICATION_METHOD: "FULL_TABLE",
+                cls.REPLICATION_KEYS: set(),
                 cls.OBEYS_START_DATE: False,
             },
             "campaign_performance": {
-                cls.PRIMARY_KEYS: {"id"},
+                cls.PRIMARY_KEYS: {"campaign_id", "date"},
                 cls.REPLICATION_METHOD: "INCREMENTAL",
-                cls.REPLICATION_KEYS: {"created_at"},
+                cls.REPLICATION_KEYS: {"date"},
                 cls.OBEYS_START_DATE: True,
             },
         }

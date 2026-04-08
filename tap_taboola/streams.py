@@ -43,7 +43,6 @@ def parse_campaign(campaign):
 
     return {
         'id': int(campaign.get('id')),
-        'created_at': campaign.get('created_at'),
         'advertiser_id': str(campaign.get('advertiser_id', '')),
         'name': str(campaign.get('name', '')),
         'tracking_code': str(campaign.get('tracking_code', '')),
@@ -87,9 +86,8 @@ def sync_campaigns(access_token, account_id):
 
 
 def parse_campaign_performance(campaign_performance):
+    raw_date = campaign_performance.get('date')
     return {
-        'id': campaign_performance.get('id'),
-        'created_at': campaign_performance.get('created_at'),
         'campaign_id': int(campaign_performance.get('campaign')),
         'impressions': int(campaign_performance.get('impressions', 0)),
         'ctr': float(campaign_performance.get('ctr', 0.0)),
@@ -102,10 +100,7 @@ def parse_campaign_performance(campaign_performance):
         'cpa_conversion_rate': float(campaign_performance.get(
             'cpa_conversion_rate', 0.0)),
         'spent': float(campaign_performance.get('spent', 0.0)),
-        'date': str(datetime.datetime.strptime(
-            campaign_performance.get('date'),
-            '%Y-%m-%d %H:%M:%S.%f'
-        ).date()),
+        'date': str(datetime.datetime.strptime(raw_date, '%Y-%m-%d %H:%M:%S.%f').date()) if raw_date else None,
         'campaign_name': str(campaign_performance.get('campaign_name', '')),
         'conversions_value': float(campaign_performance.get('conversions_value', 0.0)),
     }
@@ -155,8 +150,8 @@ def sync_campaign_performance(config, state, access_token, account_id):
 class Campaign(Stream):
     name = "campaigns"
     key_properties = ["id"]
-    replication_keys = ["created_at"]
-    replication_method = "INCREMENTAL"
+    replication_keys = None
+    replication_method = "FULL_TABLE"
 
     def sync(self, access_token):
         sync_campaigns(access_token, self.config['account_id'])
@@ -164,8 +159,8 @@ class Campaign(Stream):
 
 class CampaignPerformance(Stream):
     name = "campaign_performance"
-    key_properties = ["id"]
-    replication_keys = ["created_at"]
+    key_properties = ["campaign_id", "date"]
+    replication_keys = ["date"]
     replication_method = "INCREMENTAL"
 
     def sync(self, access_token):

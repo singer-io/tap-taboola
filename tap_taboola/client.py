@@ -10,7 +10,7 @@ BASE_URL = 'https://backstage.taboola.com'
 @backoff.on_exception(backoff.expo,
                       (requests.exceptions.RequestException),
                       max_tries=5,
-                      giveup=lambda e: e.response is not None and 400 <= e.response.status_code < 500, # pylint: disable=line-too-long
+                      giveup=lambda e: e.response is not None and 400 <= e.response.status_code < 500 and e.response.status_code != 429, # pylint: disable=line-too-long
                       factor=2)
 def request(url, access_token, params=None):
     if params is None:

@@ -2,11 +2,7 @@
   "type": "object",
   "properties": {
     "id": {
-      "type": [ "null", "integer"]
-    },
-    "created_at": {
-      "type": [ "null", "string"],
-      "format": "date-time"
+      "type": "integer"
     },
     "advertiser_id": {
       "type": [ "null", "string"]

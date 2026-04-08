@@ -163,12 +163,17 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
         taboola.do_sync(self._make_args())
 
+        expected_key_props = {
+            'campaigns': ['id'],
+            'campaign_performance': ['campaign_id', 'date'],
+        }
+
         for schema_call in mock_write_schema.call_args_list:
             stream_name = schema_call[0][0]
             key_props = schema_call[0][2]
             self.assertIsInstance(key_props, list)
-            self.assertIn('id', key_props,
-                          f"key_properties for {stream_name} should include 'id'")
+            self.assertEqual(sorted(key_props), sorted(expected_key_props[stream_name]),
+                             f"key_properties mismatch for {stream_name}")
 
     # ------------------------------------------------------------------
     # Stream selection
