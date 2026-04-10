@@ -8,11 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import tap_taboola as taboola
-
-try:
-    from .base import TaboolaBaseTest
-except ImportError:
-    from base import TaboolaBaseTest
+from tests.base import TaboolaBaseTest
 
 # Fields emitted by parse_campaign()
 CAMPAIGN_FIELDS = {

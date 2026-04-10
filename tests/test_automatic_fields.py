@@ -1,11 +1,7 @@
 """Integration test: automatic (primary key / replication key) fields are
 always marked as inclusion=automatic in metadata."""
 import unittest
-
-try:
-    from .base import TaboolaBaseTest
-except ImportError:
-    from base import TaboolaBaseTest
+from tests.base import TaboolaBaseTest
 
 
 class AutomaticFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):

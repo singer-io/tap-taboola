@@ -24,12 +24,7 @@ from tap_taboola import (
     verify_account_access,
 )
 
-try:
-    from ..base import TaboolaBaseTest
-except ImportError:
-    import sys, os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-    from base import TaboolaBaseTest
+from tests.base import TaboolaBaseTest
 
 
 # ---------------------------------------------------------------------------

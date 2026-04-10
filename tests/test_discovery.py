@@ -1,10 +1,6 @@
 """Integration test: discovery produces correct catalog and metadata."""
 import unittest
-
-try:
-    from .base import TaboolaBaseTest
-except ImportError:
-    from base import TaboolaBaseTest
+from tests.base import TaboolaBaseTest
 
 
 class DiscoveryIntegrationTest(TaboolaBaseTest, unittest.TestCase):
