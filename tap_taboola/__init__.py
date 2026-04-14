@@ -4,19 +4,10 @@ import argparse
 import json
 import sys
 import singer
-from singer import metadata
 import requests
 
 from tap_taboola.client import request, BASE_URL
-from tap_taboola.streams import (
-    STREAMS,
-    parse_campaign,
-    parse_campaign_performance,
-    fetch_campaigns,
-    fetch_campaign_performance,
-    sync_campaigns,
-    sync_campaign_performance,
-)
+from tap_taboola.streams import STREAMS
 from tap_taboola.discover import discover
 
 LOGGER = singer.get_logger()
