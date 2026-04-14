@@ -15,13 +15,15 @@ from tap_taboola import (
     get_token_password_auth,
     load_config,
     load_state,
-    parse_campaign,
-    parse_campaign_performance,
-    request,
-    sync_campaigns,
-    sync_campaign_performance,
     validate_config,
     verify_account_access,
+)
+from tap_taboola.client import request
+from tap_taboola.streams import (
+    parse_campaign,
+    parse_campaign_performance,
+    sync_campaigns,
+    sync_campaign_performance,
 )
 
 from tests.base import TaboolaBaseTest
