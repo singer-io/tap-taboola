@@ -2,7 +2,7 @@
   "type": "object",
   "properties": {
     "id": {
-      "type": "integer"
+      "type": [ "null", "integer"]
     },
     "advertiser_id": {
       "type": [ "null", "string"]
