@@ -26,7 +26,6 @@ jobs:
           name: 'Unit Tests'
           command: |
             source /usr/local/share/virtualenvs/tap-taboola/bin/activate
-            uv pip install pytest coverage
             mkdir -p test_output
             coverage run -m pytest tests/unittests --junitxml=test_output/report.xml
             coverage report
@@ -36,6 +35,7 @@ jobs:
       - store_artifacts:
           path: htmlcov
       - run:
+          # Mocked integration tests (no live API calls)
           name: 'Integration Tests'
           command: |
             source /usr/local/share/virtualenvs/tap-taboola/bin/activate

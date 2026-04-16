@@ -7,15 +7,17 @@ from unittest.mock import MagicMock, mock_open, patch
 import requests
 
 from tap_taboola import (
-    generate_token,
-    get_token_client_credentials_auth,
-    get_token_password_auth,
     load_config,
     load_state,
     validate_config,
     verify_account_access,
 )
-from tap_taboola.client import request
+from tap_taboola.client import (
+    request,
+    generate_token,
+    get_token_client_credentials_auth,
+    get_token_password_auth,
+)
 from tap_taboola.streams import (
     parse_campaign,
     parse_campaign_performance,
@@ -250,10 +252,10 @@ class TestLoadState(unittest.TestCase):
             result = load_state('state.json')
         self.assertEqual(result, state)
 
-    def test_raises_runtime_error_on_invalid_json(self):
+    def test_raises_exception_on_invalid_json(self):
         m = mock_open(read_data='{not valid json}')
         with patch('builtins.open', m):
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(Exception):
                 load_state('bad_state.json')
 
 
@@ -279,10 +281,10 @@ class TestLoadConfig(unittest.TestCase):
             result = load_config('config.json')
         self.assertEqual(result['username'], 'user')
 
-    def test_raises_runtime_error_on_invalid_json(self):
+    def test_raises_exception_on_invalid_json(self):
         m = mock_open(read_data='{not valid')
         with patch('builtins.open', m):
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(Exception):
                 load_config('bad_config.json')
 
     def test_raises_runtime_error_when_required_key_missing(self):
@@ -306,14 +308,14 @@ class TestGetTokenPasswordAuth(unittest.TestCase):
         mock_resp.json.return_value = body
         return mock_resp
 
-    @patch('tap_taboola.requests.post')
+    @patch('tap_taboola.client.requests.post')
     def test_returns_token_on_200(self, mock_post):
         mock_post.return_value = self._make_response(
             200, {'access_token': 'tok123'})
         result = get_token_password_auth('cid', 'csec', 'user', 'pass')
         self.assertEqual(result, {'token': 'tok123'})
 
-    @patch('tap_taboola.requests.post')
+    @patch('tap_taboola.client.requests.post')
     def test_returns_error_on_4xx(self, mock_post):
         mock_post.return_value = self._make_response(
             401, {'error': 'unauthorized', 'error_description': 'bad creds'})
@@ -322,13 +324,13 @@ class TestGetTokenPasswordAuth(unittest.TestCase):
         self.assertEqual(result['error_description'], 'bad creds')
         self.assertNotIn('token', result)
 
-    @patch('tap_taboola.requests.post')
+    @patch('tap_taboola.client.requests.post')
     def test_returns_empty_dict_on_other_status(self, mock_post):
         mock_post.return_value = self._make_response(500, {})
         result = get_token_password_auth('cid', 'csec', 'user', 'pass')
         self.assertEqual(result, {})
 
-    @patch('tap_taboola.requests.post')
+    @patch('tap_taboola.client.requests.post')
     def test_uses_password_grant_type(self, mock_post):
         mock_post.return_value = self._make_response(200, {'access_token': 'x'})
         get_token_password_auth('cid', 'csec', 'user', 'pass')
@@ -349,21 +351,21 @@ class TestGetTokenClientCredentialsAuth(unittest.TestCase):
         mock_resp.json.return_value = body
         return mock_resp
 
-    @patch('tap_taboola.requests.post')
+    @patch('tap_taboola.client.requests.post')
     def test_returns_token_on_200(self, mock_post):
         mock_post.return_value = self._make_response(
             200, {'access_token': 'cc_tok'})
         result = get_token_client_credentials_auth('cid', 'csec')
         self.assertEqual(result, {'token': 'cc_tok'})
 
-    @patch('tap_taboola.requests.post')
+    @patch('tap_taboola.client.requests.post')
     def test_returns_error_on_4xx(self, mock_post):
         mock_post.return_value = self._make_response(
             403, {'error': 'forbidden', 'error_description': 'no access'})
         result = get_token_client_credentials_auth('cid', 'csec')
         self.assertEqual(result['error'], 'forbidden')
 
-    @patch('tap_taboola.requests.post')
+    @patch('tap_taboola.client.requests.post')
     def test_uses_client_credentials_grant_type(self, mock_post):
         mock_post.return_value = self._make_response(200, {'access_token': 'x'})
         get_token_client_credentials_auth('cid', 'csec')
@@ -377,8 +379,8 @@ class TestGetTokenClientCredentialsAuth(unittest.TestCase):
 
 class TestGenerateToken(unittest.TestCase):
 
-    @patch('tap_taboola.get_token_client_credentials_auth')
-    @patch('tap_taboola.get_token_password_auth')
+    @patch('tap_taboola.client.get_token_client_credentials_auth')
+    @patch('tap_taboola.client.get_token_password_auth')
     def test_returns_token_from_password_auth_when_successful(
             self, mock_pw, mock_cc):
         mock_pw.return_value = {'token': 'pw_token'}
@@ -386,8 +388,8 @@ class TestGenerateToken(unittest.TestCase):
         self.assertEqual(result, 'pw_token')
         mock_cc.assert_not_called()
 
-    @patch('tap_taboola.get_token_client_credentials_auth')
-    @patch('tap_taboola.get_token_password_auth')
+    @patch('tap_taboola.client.get_token_client_credentials_auth')
+    @patch('tap_taboola.client.get_token_password_auth')
     def test_falls_back_to_client_credentials_when_password_auth_fails(
             self, mock_pw, mock_cc):
         mock_pw.return_value = {'error': 'invalid_grant', 'error_description': 'Bad credentials'}
@@ -396,8 +398,8 @@ class TestGenerateToken(unittest.TestCase):
         self.assertEqual(result, 'cc_token')
         mock_cc.assert_called_once()
 
-    @patch('tap_taboola.get_token_client_credentials_auth')
-    @patch('tap_taboola.get_token_password_auth')
+    @patch('tap_taboola.client.get_token_client_credentials_auth')
+    @patch('tap_taboola.client.get_token_password_auth')
     def test_raises_exception_when_both_auth_methods_fail(
             self, mock_pw, mock_cc):
         mock_pw.return_value = {'error': 'e1', 'error_description': 'desc1'}

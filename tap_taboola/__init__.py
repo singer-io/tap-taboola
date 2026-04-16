@@ -4,9 +4,8 @@ import argparse
 import json
 import sys
 import singer
-import requests
 
-from tap_taboola.client import request, BASE_URL
+from tap_taboola.client import generate_token, verify_account_access
 from tap_taboola.streams import STREAMS
 from tap_taboola.discover import discover
 
@@ -37,89 +36,6 @@ def is_selected(stream_catalog):
 
     return inclusion == "automatic"
 
-
-def get_token_password_auth(client_id, client_secret, username, password):
-    url = '{}/backstage/oauth/token'.format(BASE_URL)
-    params = {
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'username': username,
-        'password': password,
-        'grant_type': 'password',
-    }
-
-    response = requests.post(
-        url,
-        headers={'Content-Type': 'application/x-www-form-urlencoded',
-                 'Accept': 'application/json'},
-        params=params)
-
-    LOGGER.info("Got response code: {}".format(response.status_code))
-
-    result = {}
-    if response.status_code == 200:
-        LOGGER.info("Got an access token.")
-        result = {"token": response.json().get('access_token', None)}
-    elif response.status_code >= 400 and response.status_code < 500:
-        result = {k: response.json().get(k) for k in ('error','error_description')}
-
-    return result
-
-def get_token_client_credentials_auth(client_id, client_secret):
-    url = '{}/backstage/oauth/token'.format(BASE_URL)
-    params = {
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'grant_type': 'client_credentials'
-    }
-
-    response = requests.post(
-        url,
-        headers={'Content-Type': 'application/x-www-form-urlencoded',
-                 'Accept': 'application/json'},
-        params=params)
-
-    LOGGER.info("Got response code: {}".format(response.status_code))
-
-    result = {}
-    if response.status_code == 200:
-        LOGGER.info("Got an access token.")
-        result = {"token": response.json().get('access_token', None)}
-    elif response.status_code >= 400 and response.status_code < 500:
-        result = {k: response.json().get(k) for k in ('error','error_description')}
-
-    return result
-
-
-def generate_token(client_id, client_secret, username, password):
-    LOGGER.info("Generating new token with password auth")
-    token_result = get_token_password_auth(client_id, client_secret, username, password)
-    if 'token' not in token_result:
-        LOGGER.info("Retrying with client credentials authentication.")
-        token_result = get_token_client_credentials_auth(client_id, client_secret)
-
-    token = token_result.get('token')
-    if token is None:
-        raise Exception('Unable to authenticate, response from Taboola - {}: {}'
-                        .format(token_result.get('error'),
-                                token_result.get('error_description')))
-
-    return token
-
-
-def verify_account_access(access_token, account_id):
-    url = '{}/backstage/api/1.0/token-details/'.format(BASE_URL)
-
-    result = request(url, access_token)
-
-    token_account_id = result.json().get('account_id')
-    if token_account_id != account_id:
-        LOGGER.warning(("The provided `account_id` ({}) doesn't match the "
-                        "`account_id` of the token issued ({})").format(account_id, token_account_id))
-        return token_account_id
-
-    LOGGER.info("Verified account access via token details endpoint.")
-    return account_id
 
 def validate_config(config):
     required_keys = ['username', 'password', 'account_id',
@@ -155,9 +71,10 @@ def load_config(filename):
     try:
         with open(filename) as config_file:
             config = json.load(config_file)
-    except Exception:
-        LOGGER.fatal("Failed to decode config file. Is it valid json?")
-        raise RuntimeError
+    except json.JSONDecodeError as ex:
+        raise Exception("Failed to decode config file. Is it valid json?") from ex
+    except IOError as ex:
+        raise Exception("Failed to open config file: {}".format(filename)) from ex
 
     validate_config(config)
 
@@ -171,9 +88,10 @@ def load_state(filename):
     try:
         with open(filename) as state_file:
             return json.load(state_file)
-    except Exception:
-        LOGGER.fatal("Failed to decode state file. Is it valid json?")
-        raise RuntimeError
+    except json.JSONDecodeError as ex:
+        raise Exception("Failed to decode state file. Is it valid json?") from ex
+    except IOError as ex:
+        raise Exception("Failed to open state file: {}".format(filename)) from ex
 
 
 def do_sync(args):
