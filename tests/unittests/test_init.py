@@ -460,7 +460,7 @@ class TestRequest(unittest.TestCase):
 
 class TestVerifyAccountAccess(unittest.TestCase):
 
-    @patch('tap_taboola.request')
+    @patch('tap_taboola.client.request')
     def test_returns_account_id_when_matching(self, mock_req):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {'account_id': 'acct123'}
@@ -468,7 +468,7 @@ class TestVerifyAccountAccess(unittest.TestCase):
         result = verify_account_access('tok', 'acct123')
         self.assertEqual(result, 'acct123')
 
-    @patch('tap_taboola.request')
+    @patch('tap_taboola.client.request')
     def test_returns_token_account_id_when_mismatch(self, mock_req):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {'account_id': 'token_acct'}
