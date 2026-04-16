@@ -42,7 +42,7 @@ class StartDateIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_start_date_filters_campaign_performance(
         self,
@@ -74,7 +74,7 @@ class StartDateIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_different_start_dates_yield_different_record_counts(
         self,
@@ -132,7 +132,7 @@ class StartDateIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_full_table_stream_ignores_start_date(
         self,

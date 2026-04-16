@@ -35,7 +35,7 @@ class CampaignPerformanceIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_sync_writes_campaign_performance_records(
         self,
@@ -75,7 +75,7 @@ class CampaignPerformanceIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_full_table_stream_has_no_bookmark(
         self,

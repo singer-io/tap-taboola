@@ -53,7 +53,7 @@ class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_sync_all_streams_writes_records(
         self,
@@ -78,7 +78,7 @@ class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_sync_campaigns_only(
         self,
@@ -106,7 +106,7 @@ class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_all_campaign_fields_replicated(
         self,
@@ -128,7 +128,7 @@ class AllFieldsIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_all_performance_fields_replicated(
         self,

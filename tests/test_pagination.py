@@ -37,7 +37,7 @@ class PaginationIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_all_campaigns_returned_in_single_response(
         self,
@@ -61,7 +61,7 @@ class PaginationIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_all_performance_rows_returned_in_single_response(
         self,

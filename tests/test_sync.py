@@ -49,7 +49,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_full_pipeline_emits_schemas_and_records(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -78,7 +78,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_correct_record_counts(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -109,7 +109,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_schema_emitted_before_records(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -145,7 +145,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_schema_includes_key_properties(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -177,7 +177,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_only_selected_streams_are_synced(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -207,7 +207,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_only_performance_selected(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -233,7 +233,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_no_streams_selected_writes_nothing(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -262,7 +262,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_state_emitted_with_max_date(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -284,7 +284,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_existing_state_is_used_for_start_date(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -317,7 +317,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_empty_api_responses_no_crash(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -348,7 +348,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_account_id_mismatch_uses_token_account(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -397,7 +397,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_campaign_records_have_correct_types(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -425,7 +425,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_performance_records_have_correct_types(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -454,7 +454,7 @@ class DoSyncIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_null_end_date_uses_sentinel_via_do_sync(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -514,7 +514,7 @@ class MainImplIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_main_impl_sync_with_all_args(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -548,7 +548,7 @@ class MainImplIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_main_impl_sync_without_state_arg(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -575,7 +575,7 @@ class MainImplIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_main_impl_sync_with_short_args(
         self, mock_gen_token, mock_init_request, mock_stream_request,
@@ -625,7 +625,7 @@ class MainImplIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     @patch("tap_taboola.streams.singer.write_record")
     @patch("tap_taboola.streams.singer.write_schema")
     @patch("tap_taboola.streams.request")
-    @patch("tap_taboola.request")
+    @patch("tap_taboola.client.request")
     @patch("tap_taboola.generate_token", return_value="mock-token")
     def test_main_calls_sync(
         self, mock_gen_token, mock_init_request, mock_stream_request,
