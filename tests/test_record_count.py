@@ -1,6 +1,5 @@
-"""Integration test: pagination — Taboola returns all records in a single
-response so no multi-page fetching is needed, but we verify the tap handles
-the full result set correctly."""
+"""Mocked integration test: verify the tap writes the correct number
+of records for each stream when the API returns a full result set."""
 import json
 import os
 import tempfile
@@ -12,7 +11,7 @@ import tap_taboola as taboola
 from tests.base import TaboolaBaseTest
 
 
-class PaginationIntegrationTest(TaboolaBaseTest, unittest.TestCase):
+class RecordCountIntegrationTest(TaboolaBaseTest, unittest.TestCase):
 
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
