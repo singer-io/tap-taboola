@@ -1,14 +1,11 @@
 """Unit tests for tap_taboola/__init__.py"""
 
 import json
-import os
 import unittest
-from io import StringIO
 from unittest.mock import MagicMock, mock_open, patch
 
 import requests
 
-import tap_taboola
 from tap_taboola import (
     generate_token,
     get_token_client_credentials_auth,
