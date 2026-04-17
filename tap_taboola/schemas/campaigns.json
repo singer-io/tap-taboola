@@ -72,11 +72,11 @@
     },
     "start_date": {
       "type": [ "null", "string"],
-      "format": "date"
+      "format": "date-time"
     },
     "end_date": {
       "type": [ "null", "string"],
-      "format": "date"
+      "format": "date-time"
     },
     "approval_state": {
       "type": [ "null", "string"]

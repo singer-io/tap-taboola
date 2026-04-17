@@ -124,16 +124,10 @@ def do_sync(args):
         if not is_selected(entry):
             continue
 
-        matched = False
-        for StreamClass in STREAMS.values():
-            if StreamClass.matches_catalog(entry):
-                matched = True
-                stream = StreamClass(config, state, entry)
-                stream.write_schema()
-                stream.sync(access_token)
-        if not matched:
-            LOGGER.warning("Selected stream '{}' has no matching stream implementation."
-                           .format(entry.tap_stream_id))
+        StreamClass = STREAMS.get(entry.tap_stream_id)
+        stream = StreamClass(config, state, entry)
+        stream.write_schema()
+        stream.sync(access_token)
 
 
 def main_impl():
