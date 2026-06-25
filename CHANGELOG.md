@@ -1,4 +1,7 @@
 # Changelog
+## 1.1.0
+  * Upgraded to Python 3.12, added integration tests, and updated sync logic. [#26](https://github.com/singer-io/tap-taboola/pull/26)
+  * Renamed streams (`campaign` → `campaigns`, `Campaign Performance` → `campaign_performance`), fixed replication keys/methods, removed phantom `id`/`created_at` fields not returned by the API, fixed 429 retry handling, and upgraded dependencies.
 
 ## 1.0.0
   * Add discovery support [#22](https://github.com/singer-io/tap-taboola/pull/22)

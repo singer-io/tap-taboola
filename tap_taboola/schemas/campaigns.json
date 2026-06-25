@@ -37,7 +37,8 @@
             "type": [ "null", "string"]
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
     "platform_targeting": {
       "type": [ "null", "object"],
@@ -51,7 +52,8 @@
             "type": [ "null", "string"]
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
     "publisher_targeting": {
       "type": [ "null", "object"],
@@ -65,15 +67,16 @@
             "type": [ "null", "string"]
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
     "start_date": {
       "type": [ "null", "string"],
-      "format": "date"
+      "format": "date-time"
     },
     "end_date": {
       "type": [ "null", "string"],
-      "format": "date"
+      "format": "date-time"
     },
     "approval_state": {
       "type": [ "null", "string"]

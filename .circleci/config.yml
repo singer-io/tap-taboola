@@ -1,6 +1,4 @@
 version: 2.1
-orbs:
-  slack: circleci/slack@3.4.2
 jobs:
   build:
     docker:
@@ -10,9 +8,9 @@ jobs:
       - run:
           name: 'Setup virtual env'
           command: |
-            uv venv --python 3.9 /usr/local/share/virtualenvs/tap-taboola
+            uv venv --python 3.12 /usr/local/share/virtualenvs/tap-taboola
             source /usr/local/share/virtualenvs/tap-taboola/bin/activate
-            uv pip install -U 'pip==22.2.2' 'setuptools==65.3.0'
+            uv pip install "pip==24.0" "setuptools==70.0.0"
             uv pip install .[dev]
       - run:
           name: 'JSON Validator'
@@ -24,9 +22,24 @@ jobs:
           command: |
             source /usr/local/share/virtualenvs/tap-taboola/bin/activate
             pylint tap_taboola -d C,R,W
-      - add_ssh_keys
-      - slack/notify-on-failure:
-          only_for_branches: master
+      - run:
+          name: 'Unit Tests'
+          command: |
+            source /usr/local/share/virtualenvs/tap-taboola/bin/activate
+            mkdir -p test_output
+            coverage run -m pytest tests/unittests --junitxml=test_output/report.xml
+            coverage report
+            coverage html
+      - store_test_results:
+          path: test_output
+      - store_artifacts:
+          path: htmlcov
+      - run:
+          # Mocked integration tests (no live API calls)
+          name: 'Integration Tests'
+          command: |
+            source /usr/local/share/virtualenvs/tap-taboola/bin/activate
+            python -m pytest tests/test_*.py -v
 
 
 workflows:
