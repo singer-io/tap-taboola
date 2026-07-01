@@ -3,8 +3,10 @@ import datetime
 import singer
 from datetime import timedelta
 from singer import utils
+from requests import HTTPError
 
 from tap_taboola.client import request, BASE_URL
+from tap_taboola.exceptions import TaboolaForbiddenError
 
 
 DEFAULT_TRAILING_DAYS  = timedelta(days=30)
@@ -17,12 +19,15 @@ class Stream:
     replication_method = None
     replication_keys = None
     key_properties = None
+    parent = None
     parent_stream = None
+    http_method = "GET"
 
-    def __init__(self, config, state, catalog_entry):
+    def __init__(self, config=None, state=None, catalog_entry=None, client=None):
         self.config = config
-        self.state = state
+        self.state = state or {}
         self.catalog_entry = catalog_entry
+        self.client = client
 
     @classmethod
     def matches_catalog(cls, catalog_entry):
@@ -31,6 +36,43 @@ class Stream:
     def write_schema(self):
         schema = self.catalog_entry.schema.to_dict()
         singer.write_schema(self.name, schema, self.key_properties)
+
+    def get_url_endpoint(self):
+        raise NotImplementedError(
+            "get_url_endpoint() not implemented for {}".format(self.__class__.__name__))
+
+    def update_params(self):
+        return {}
+
+    def check_access(self):
+        url = self.get_url_endpoint()
+        params = self.update_params()
+
+        try:
+            self.client.make_request(
+                self.http_method,
+                url,
+                params,
+                {'Accept': 'application/json'},
+                body=None,
+            )
+            return True
+        except TaboolaForbiddenError as exc:
+            LOGGER.warning(
+                "Permission Error: Stream '%s' - %s",
+                self.__class__.__name__,
+                exc,
+            )
+            return False
+        except HTTPError as exc:
+            if getattr(exc.response, "status_code", None) == 403:
+                LOGGER.warning(
+                    "Permission Error: Stream '%s' - %s",
+                    self.__class__.__name__,
+                    exc,
+                )
+                return False
+            raise
 
     def sync(self, access_token):
         raise NotImplementedError(
@@ -153,6 +195,9 @@ class Campaign(Stream):
     replication_keys = None
     replication_method = "FULL_TABLE"
 
+    def get_url_endpoint(self):
+        return '{}/backstage/api/1.0/{}/campaigns/'.format(BASE_URL, self.config['account_id'])
+
     def sync(self, access_token):
         sync_campaigns(access_token, self.config['account_id'])
 
@@ -162,6 +207,16 @@ class CampaignPerformance(Stream):
     key_properties = ["campaign_id", "date"]
     replication_keys = ["date"]
     replication_method = "INCREMENTAL"
+
+    def get_url_endpoint(self):
+        return ('{}/backstage/api/1.0/{}/reports/campaign-summary/dimensions/campaign_day_breakdown'
+                .format(BASE_URL, self.config['account_id']))
+
+    def update_params(self):
+        return {
+            'start_date': self.state.get('start_date', self.config.get('start_date')),
+            'end_date': datetime.date.today(),
+        }
 
     def sync(self, access_token):
         sync_campaign_performance(
