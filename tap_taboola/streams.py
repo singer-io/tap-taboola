@@ -45,12 +45,6 @@ class Stream:
         return {}
 
     def check_access(self):
-        if self.parent:
-            return True
-
-        if not self.client:
-            return True
-
         url = self.get_url_endpoint()
         params = self.update_params()
 
