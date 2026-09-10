@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import requests
 
+from tap_taboola.client import raise_for_error
 from tap_taboola.discover import discover
 from tap_taboola.exceptions import TaboolaForbiddenError
 from tap_taboola.streams import Campaign, CampaignPerformance
@@ -68,6 +69,17 @@ class DiscoveryAccessChecksTest(unittest.TestCase):
         self.assertIn("Unauthorized Stream: campaign_performance", output)
         self.assertIn("403 Forbidden: reports denied", output)
 
+    def test_forbidden_error_preserves_api_reason(self):
+        response = MagicMock()
+        response.status_code = 403
+        response.json.return_value = {
+            "message": "CAMPAIGN_VIEW permission required"
+        }
+        response.raise_for_status.side_effect = requests.HTTPError("403")
+
+        with self.assertRaisesRegex(Exception, "CAMPAIGN_VIEW permission required"):
+            raise_for_error(response)
+
     def test_non_forbidden_http_errors_propagate(self):
         client = self._client()
         error = requests.HTTPError("400 Bad Request")
@@ -104,9 +116,15 @@ class DiscoveryAccessChecksTest(unittest.TestCase):
             TaboolaForbiddenError("HTTP-error-code: 403, Error: reports denied"),
         ]
 
-        with self.assertRaises(TaboolaForbiddenError) as raised:
-            discover(client)
+        with self.assertLogs(level="WARNING") as logs:
+            with self.assertRaises(TaboolaForbiddenError) as raised:
+                discover(client)
 
+        output = "\n".join(logs.output)
+        self.assertIn("Unauthorized Stream: campaigns", output)
+        self.assertIn("Unauthorized Stream: campaign_performance", output)
+        self.assertIn("campaigns denied", output)
+        self.assertIn("reports denied", output)
         self.assertEqual(
             str(raised.exception),
             "HTTP-error-code: 403, Error: The credentials do not have "
