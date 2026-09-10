@@ -9,22 +9,6 @@ from tap_taboola.exceptions import TaboolaForbiddenError
 LOGGER = singer.get_logger()
 
 
-def _prune_inaccessible_children(schemas: dict, field_metadata: dict) -> None:
-    to_remove = []
-    for name, stream_cls in list(STREAMS.items()):
-        parent_name = getattr(stream_cls, "parent", None)
-        if name in schemas and parent_name and parent_name not in schemas:
-            LOGGER.warning(
-                "Stream '%s' excluded from catalog because its parent stream '%s' is not accessible.",
-                name,
-                parent_name,
-            )
-            schemas.pop(name, None)
-            field_metadata.pop(name, None)
-            to_remove.append(name)
-    return to_remove
-
-
 def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
     inaccessible_streams = [
         stream_name
@@ -36,8 +20,6 @@ def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
     for stream_name in inaccessible_streams:
         schemas.pop(stream_name, None)
         field_metadata.pop(stream_name, None)
-
-    inaccessible_streams.extend(_prune_inaccessible_children(schemas, field_metadata))
 
     if not schemas:
         raise TaboolaForbiddenError(
