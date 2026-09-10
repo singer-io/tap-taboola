@@ -10,6 +10,7 @@ LOGGER = singer.get_logger()
 
 
 def _prune_inaccessible_children(schemas: dict, field_metadata: dict) -> None:
+    to_remove = []
     for name, stream_cls in list(STREAMS.items()):
         parent_name = getattr(stream_cls, "parent", None)
         if name in schemas and parent_name and parent_name not in schemas:
@@ -20,6 +21,8 @@ def _prune_inaccessible_children(schemas: dict, field_metadata: dict) -> None:
             )
             schemas.pop(name, None)
             field_metadata.pop(name, None)
+            to_remove.append(name)
+    return to_remove
 
 
 def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
@@ -34,7 +37,7 @@ def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
         schemas.pop(stream_name, None)
         field_metadata.pop(stream_name, None)
 
-    _prune_inaccessible_children(schemas, field_metadata)
+    inaccessible_streams.extend(_prune_inaccessible_children(schemas, field_metadata))
 
     if not schemas:
         raise TaboolaForbiddenError(
@@ -42,7 +45,7 @@ def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
         )
     if inaccessible_streams:
         LOGGER.warning(
-            "No 'read' access to stream(s): %s. Excluded from catalog.",
+            "Unauthorized streams excluded from catalog: %s",
             ", ".join(inaccessible_streams),
         )
 

@@ -59,16 +59,16 @@ class Stream:
             return True
         except TaboolaForbiddenError as exc:
             LOGGER.warning(
-                "Permission Error: Stream '%s' - %s",
-                self.__class__.__name__,
+                "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                self.name,
                 exc,
             )
             return False
         except HTTPError as exc:
             if getattr(exc.response, "status_code", None) == 403:
                 LOGGER.warning(
-                    "Permission Error: Stream '%s' - %s",
-                    self.__class__.__name__,
+                    "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                    self.name,
                     exc,
                 )
                 return False
