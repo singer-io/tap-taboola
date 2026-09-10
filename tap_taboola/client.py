@@ -1,10 +1,52 @@
 import singer
 import requests
 import backoff
+from tap_taboola.exceptions import TaboolaForbiddenError
 
 LOGGER = singer.get_logger()
 
 BASE_URL = 'https://backstage.taboola.com'
+
+
+def _get_error_message(response):
+    try:
+        payload = response.json()
+    except (ValueError, TypeError):
+        payload = None
+
+    if isinstance(payload, dict):
+        for key in ('error_description', 'message', 'error', 'detail'):
+            message = payload.get(key)
+            if isinstance(message, str) and message.strip():
+                return message.strip()
+
+    text = getattr(response, 'text', '')
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+    return 'The credentials do not have read access to this resource.'
+
+
+class TaboolaClient:
+    def __init__(self, config, access_token):
+        self.config = config
+        self.access_token = access_token
+
+    def make_request(self, method, url, params=None, headers=None, body=None):
+        if method != "GET":
+            raise NotImplementedError("Taboola client currently supports only GET access checks")
+        return request(url, self.access_token, params=params)
+
+
+def raise_for_error(response):
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as error:
+        if response.status_code == 403:
+            raise TaboolaForbiddenError(
+                "HTTP-error-code: 403, Error: {}".format(_get_error_message(response)),
+                response,
+            ) from error
+        raise
 
 
 def _giveup_on_client_error(exc):
@@ -32,7 +74,7 @@ def request(url, access_token, params=None):
 
     LOGGER.info("Got response code: {}".format(response.status_code))
 
-    response.raise_for_status()
+    raise_for_error(response)
     return response
 
 

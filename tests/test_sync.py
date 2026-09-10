@@ -4,6 +4,8 @@ import json
 import os
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -497,14 +499,33 @@ class MainImplIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     # Discovery via CLI args
     # ------------------------------------------------------------------
 
+    @patch("tap_taboola.TaboolaClient")
+    @patch("tap_taboola.verify_account_access", return_value="test-account-id")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
     @patch("tap_taboola.do_discover")
-    def test_main_impl_discover_mode(self, mock_discover):
+    def test_main_impl_discover_mode(self, mock_discover, _mock_generate_token, _mock_verify_account_access, _mock_client):
         """main_impl() with --config and --discover calls do_discover()."""
         with patch('sys.argv', ['tap-taboola',
                                 '--config', self.config_path,
                                 '--discover']):
             taboola.main_impl()
         mock_discover.assert_called_once()
+
+    @patch("tap_taboola.do_discover")
+    @patch("tap_taboola.generate_token", side_effect=Exception("Unable to authenticate"))
+    def test_main_impl_discovery_auth_failure_emits_no_catalog(
+        self, _mock_generate_token, mock_discover,
+    ):
+        """Invalid credentials fail before discovery can write a catalog."""
+        output = StringIO()
+        with patch('sys.argv', ['tap-taboola',
+                                '--config', self.config_path,
+                                '--discover']), redirect_stdout(output):
+            with self.assertRaisesRegex(Exception, "Unable to authenticate"):
+                taboola.main_impl()
+
+        self.assertEqual(output.getvalue(), '')
+        mock_discover.assert_not_called()
 
     # ------------------------------------------------------------------
     # Sync via CLI args: --config + --catalog + --state
@@ -599,8 +620,11 @@ class MainImplIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     # Discovery via CLI short args: -c -d
     # ------------------------------------------------------------------
 
+    @patch("tap_taboola.TaboolaClient")
+    @patch("tap_taboola.verify_account_access", return_value="test-account-id")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
     @patch("tap_taboola.do_discover")
-    def test_main_impl_discover_with_short_args(self, mock_discover):
+    def test_main_impl_discover_with_short_args(self, mock_discover, _mock_generate_token, _mock_verify_account_access, _mock_client):
         """main_impl() with -c and -d calls do_discover()."""
         with patch('sys.argv', ['tap-taboola',
                                 '-c', self.config_path,
@@ -612,8 +636,11 @@ class MainImplIntegrationTest(TaboolaBaseTest, unittest.TestCase):
     # main() wraps main_impl() and re-raises exceptions
     # ------------------------------------------------------------------
 
+    @patch("tap_taboola.TaboolaClient")
+    @patch("tap_taboola.verify_account_access", return_value="test-account-id")
+    @patch("tap_taboola.generate_token", return_value="mock-token")
     @patch("tap_taboola.do_discover")
-    def test_main_calls_discover(self, mock_discover):
+    def test_main_calls_discover(self, mock_discover, _mock_generate_token, _mock_verify_account_access, _mock_client):
         """main() with --discover calls do_discover() via main_impl()."""
         with patch('sys.argv', ['tap-taboola',
                                 '--config', self.config_path,

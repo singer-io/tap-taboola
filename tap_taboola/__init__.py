@@ -5,17 +5,17 @@ import json
 import sys
 import singer
 
-from tap_taboola.client import generate_token, verify_account_access
+from tap_taboola.client import generate_token, verify_account_access, TaboolaClient
 from tap_taboola.streams import STREAMS
 from tap_taboola.discover import discover
 
 LOGGER = singer.get_logger()
 
 
-def do_discover():
+def do_discover(client):
 
     LOGGER.info("Starting discovery")
-    catalog = discover()
+    catalog = discover(client)
     json.dump(catalog.to_dict(), sys.stdout, indent=2)
     LOGGER.info("Finished discover")
 
@@ -144,7 +144,15 @@ def main_impl():
     try:
 
         if args.discover:
-            do_discover()
+            config = load_config(args.config)
+            access_token = generate_token(
+                client_id=config.get("client_id"),
+                client_secret=config.get("client_secret"),
+                username=config.get("username"),
+                password=config.get("password"),
+            )
+            config["account_id"] = verify_account_access(access_token, config["account_id"])
+            do_discover(TaboolaClient(config, access_token))
         elif args.catalog:
             do_sync(args)
     except RuntimeError:

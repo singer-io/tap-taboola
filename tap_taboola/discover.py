@@ -3,14 +3,40 @@ from singer import metadata
 from singer.catalog import Catalog, CatalogEntry, Schema
 
 from tap_taboola.schema import get_schemas
+from tap_taboola.streams import STREAMS
+from tap_taboola.exceptions import TaboolaForbiddenError
 
 LOGGER = singer.get_logger()
 
 
-def discover() -> Catalog:
+def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
+    inaccessible_streams = [
+        stream_name
+        for stream_name, stream_obj in STREAMS.items()
+        if stream_name in schemas
+        and not stream_obj(config=client.config, state={}, catalog_entry=None, client=client).check_access()
+    ]
+
+    for stream_name in inaccessible_streams:
+        schemas.pop(stream_name, None)
+        field_metadata.pop(stream_name, None)
+
+    if not schemas:
+        raise TaboolaForbiddenError(
+            "HTTP-error-code: 403, Error: The credentials do not have 'read' access to any supported streams."
+        )
+    if inaccessible_streams:
+        LOGGER.warning(
+            "Unauthorized streams excluded from catalog: %s",
+            ", ".join(inaccessible_streams),
+        )
+
+
+def discover(client) -> Catalog:
     """Run the discovery mode, prepare the catalog file and return the
     catalog."""
     schemas, field_metadata = get_schemas()
+    _apply_access_checks(client, schemas, field_metadata)
     catalog = Catalog([])
     for stream_name, schema_dict in schemas.items():
         try:
