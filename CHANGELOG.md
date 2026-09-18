@@ -1,4 +1,7 @@
 # Changelog
+## 1.2.0
+  * Streams that return HTTP 403 during discovery are now excluded from the catalog, and discovery only fails when no streams are accessible.  [#29](https://github.com/singer-io/tap-taboola/pull/29)
+
 ## 1.1.0
   * Upgraded to Python 3.12, added integration tests, and updated sync logic. [#26](https://github.com/singer-io/tap-taboola/pull/26)
   * Renamed streams (`campaign` → `campaigns`, `Campaign Performance` → `campaign_performance`), fixed replication keys/methods, removed phantom `id`/`created_at` fields not returned by the API, fixed 429 retry handling, and upgraded dependencies.
