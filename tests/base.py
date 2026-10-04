@@ -157,9 +157,12 @@ class TaboolaBaseTest:
     @staticmethod
     def _run_discover():
         """Run do_discover() and capture the catalog from stdout."""
+        client = MagicMock()
+        client.config = TaboolaBaseTest.default_config
+        client.make_request.return_value = MockResponse({"results": []})
         captured = StringIO()
         with patch('sys.stdout', captured):
-            taboola.do_discover()
+            taboola.do_discover(client)
         captured.seek(0)
         return json.loads(captured.read())
 
@@ -167,9 +170,12 @@ class TaboolaBaseTest:
     def _make_selected_catalog(stream_names=None):
         """Build a catalog dict with selected=True for the given streams.
         If stream_names is None, select all streams."""
+        client = MagicMock()
+        client.config = TaboolaBaseTest.default_config
+        client.make_request.return_value = MockResponse({"results": []})
         captured = StringIO()
         with patch('sys.stdout', captured):
-            taboola.do_discover()
+            taboola.do_discover(client)
         captured.seek(0)
         catalog = json.loads(captured.read())
 
