@@ -1,7 +1,7 @@
 import singer
 import requests
 import backoff
-from tap_taboola.exceptions import TaboolaForbiddenError
+from tap_taboola.exceptions import TaboolaForbiddenError, TaboolaUnauthorizedError
 
 LOGGER = singer.get_logger()
 
@@ -41,6 +41,11 @@ def raise_for_error(response):
     try:
         response.raise_for_status()
     except requests.HTTPError as error:
+        if response.status_code == 401:
+            raise TaboolaUnauthorizedError(
+                "HTTP-error-code: 401, Error: {}".format(_get_error_message(response)),
+                response,
+            ) from error
         if response.status_code == 403:
             raise TaboolaForbiddenError(
                 "HTTP-error-code: 403, Error: {}".format(_get_error_message(response)),
@@ -102,6 +107,7 @@ def get_token_password_auth(client_id, client_secret, username, password):
         result = {"token": response.json().get('access_token', None)}
     elif response.status_code >= 400 and response.status_code < 500:
         result = {k: response.json().get(k) for k in ('error', 'error_description')}
+        result['status_code'] = response.status_code
 
     return result
 
@@ -128,6 +134,7 @@ def get_token_client_credentials_auth(client_id, client_secret):
         result = {"token": response.json().get('access_token', None)}
     elif response.status_code >= 400 and response.status_code < 500:
         result = {k: response.json().get(k) for k in ('error', 'error_description')}
+        result['status_code'] = response.status_code
 
     return result
 
@@ -141,9 +148,18 @@ def generate_token(client_id, client_secret, username, password):
 
     token = token_result.get('token')
     if token is None:
-        raise Exception('Unable to authenticate, response from Taboola - {}: {}'
-                        .format(token_result.get('error'),
-                                token_result.get('error_description')))
+        # Invalid client_id/client_secret/username/password all surface here
+        # as the Taboola OAuth endpoint responds with a 4xx and an
+        # error/error_description payload rather than a distinct 401 on every
+        # failure mode. Treat any failure to obtain a token as an
+        # authentication failure so callers can distinguish it from other,
+        # potentially recoverable, errors (e.g. per-stream 403s during
+        # discovery).
+        raise TaboolaUnauthorizedError(
+            'HTTP-error-code: {}, Error: Unable to authenticate with Taboola - {}: {}'
+            .format(token_result.get('status_code', 'unknown'),
+                    token_result.get('error'),
+                    token_result.get('error_description')))
 
     return token
 

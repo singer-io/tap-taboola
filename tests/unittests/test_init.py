@@ -17,7 +17,9 @@ from tap_taboola.client import (
     generate_token,
     get_token_client_credentials_auth,
     get_token_password_auth,
+    raise_for_error,
 )
+from tap_taboola.exceptions import TaboolaForbiddenError, TaboolaUnauthorizedError
 from tap_taboola.streams import (
     parse_campaign,
     parse_campaign_performance,
@@ -400,13 +402,24 @@ class TestGenerateToken(unittest.TestCase):
 
     @patch('tap_taboola.client.get_token_client_credentials_auth')
     @patch('tap_taboola.client.get_token_password_auth')
-    def test_raises_exception_when_both_auth_methods_fail(
+    def test_raises_unauthorized_when_both_auth_methods_fail(
+            self, mock_pw, mock_cc):
+        mock_pw.return_value = {'error': 'e1', 'error_description': 'desc1', 'status_code': 401}
+        mock_cc.return_value = {'error': 'e2', 'error_description': 'desc2', 'status_code': 401}
+        with self.assertRaises(TaboolaUnauthorizedError) as ctx:
+            generate_token('cid', 'csec', 'user', 'pass')
+        self.assertIn('Unable to authenticate', str(ctx.exception))
+        self.assertIn('401', str(ctx.exception))
+
+    @patch('tap_taboola.client.get_token_client_credentials_auth')
+    @patch('tap_taboola.client.get_token_password_auth')
+    def test_raises_unauthorized_with_unknown_status_when_missing(
             self, mock_pw, mock_cc):
         mock_pw.return_value = {'error': 'e1', 'error_description': 'desc1'}
         mock_cc.return_value = {'error': 'e2', 'error_description': 'desc2'}
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(TaboolaUnauthorizedError) as ctx:
             generate_token('cid', 'csec', 'user', 'pass')
-        self.assertIn('Unable to authenticate', str(ctx.exception))
+        self.assertIn('unknown', str(ctx.exception))
 
 
 # ---------------------------------------------------------------------------
@@ -452,6 +465,39 @@ class TestRequest(unittest.TestCase):
         mock_get.return_value = mock_resp
         with self.assertRaises(requests.exceptions.HTTPError):
             request('http://example.com', 'tok')
+
+
+# ---------------------------------------------------------------------------
+# raise_for_error
+# ---------------------------------------------------------------------------
+
+class TestRaiseForError(unittest.TestCase):
+
+    def _make_response(self, status_code, body=None):
+        mock_resp = MagicMock()
+        mock_resp.status_code = status_code
+        mock_resp.json.return_value = body or {}
+        mock_resp.text = json.dumps(body or {})
+        mock_resp.raise_for_status.side_effect = requests.exceptions.HTTPError(
+            '{} error'.format(status_code))
+        return mock_resp
+
+    def test_401_raises_taboola_unauthorized_error(self):
+        response = self._make_response(401, {'message': 'Invalid credentials'})
+        with self.assertRaises(TaboolaUnauthorizedError) as ctx:
+            raise_for_error(response)
+        self.assertIn('401', str(ctx.exception))
+        self.assertIn('Invalid credentials', str(ctx.exception))
+
+    def test_403_raises_taboola_forbidden_error(self):
+        response = self._make_response(403, {'message': 'No access'})
+        with self.assertRaises(TaboolaForbiddenError):
+            raise_for_error(response)
+
+    def test_other_4xx_reraises_http_error(self):
+        response = self._make_response(404, {'message': 'Not found'})
+        with self.assertRaises(requests.exceptions.HTTPError):
+            raise_for_error(response)
 
 
 # ---------------------------------------------------------------------------
